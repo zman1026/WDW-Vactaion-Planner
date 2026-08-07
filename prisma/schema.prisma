@@ -1,0 +1,101 @@
+// This is your Prisma schema file.
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ========== Core User & Trip Models ==========
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trips Trip[]
+}
+
+model Trip {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String   // e.g. "Smith Family WDW 2027"
+  startDate   DateTime
+  endDate     DateTime
+  budgetCents Int?     // total budget in cents
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dayPlans DayPlan[]
+  hotelId  String?   // optional link to a hotel entity
+
+  @@index([userId])
+}
+
+model DayPlan {
+  id        String   @id @default(cuid())
+  tripId    String
+  date      DateTime // the specific day
+  parkId    String?  // ThemeParks entity ID of the park for that day (or null for rest day)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trip     Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  items    DayPlanItem[]
+
+  @@index([tripId])
+  @@unique([tripId, date])
+}
+
+model DayPlanItem {
+  id          String   @id @default(cuid())
+  dayPlanId   String
+  entityId    String   // ThemeParks.wiki entity ID (attraction, restaurant, show, etc.)
+  entityType  String   // "ATTRACTION" | "RESTAURANT" | "SHOW" | "HOTEL" | "EXPERIENCE"
+  title       String   // cached name for display
+  startTime   String?  // "09:30" or null
+  endTime     String?  // "10:45" or null
+  estimatedCostCents Int? 
+  notes       String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  dayPlan DayPlan @relation(fields: [dayPlanId], references: [id], onDelete: Cascade)
+
+  @@index([dayPlanId])
+}
+
+// ========== Cached ThemeParks Entities ==========
+// We cache the relatively static data so the app is fast and resilient.
+
+model ParkEntity {
+  id          String   @id // ThemeParks.wiki entity ID
+  name        String
+  entityType  String   // DESTINATION | PARK | ATTRACTION | SHOW | RESTAURANT | HOTEL
+  parentId    String?  // parent entity ID
+  destination String?  // "waltdisneyworldresort" etc.
+  slug        String?
+  location    String?  // JSON or text description
+  description String?
+  rawData     Json?    // full payload from ThemeParks for flexibility
+  lastSynced  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([entityType])
+  @@index([parentId])
+  @@index([destination])
+}
+
+// Live data is better kept short-lived (Redis later) or fetched on demand.
+// For MVP we can store recent wait times if needed.
