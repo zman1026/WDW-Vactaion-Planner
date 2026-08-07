@@ -20,7 +20,7 @@ An online planning hub for individuals and families to plan every aspect of a Wa
 ## Getting Started (Local)
 
 1. Clone the repo
-2. Copy `.env.example` → `.env` and fill in `DATABASE_URL`. Configure a GitHub OAuth app and set `NEXTAUTH_SECRET`, `GITHUB_ID`, and `GITHUB_SECRET`; use `http://localhost:3000/api/auth/callback/github` as the local callback URL.
+2. Copy `.env.example` → `.env` and fill in `DATABASE_URL`, `NEXTAUTH_URL`, and `NEXTAUTH_SECRET`.
 3. Install dependencies:
    ```bash
    npm install
@@ -42,7 +42,10 @@ An online planning hub for individuals and families to plan every aspect of a Wa
 2. Connect this GitHub repository
 3. Add a PostgreSQL database service
 4. Railway will automatically set `DATABASE_URL`
-5. Deploy – it will run `npm install` + `npm run build`
+5. Add `NEXTAUTH_URL` (your Railway public URL) and `NEXTAUTH_SECRET` to the web service variables. Generate `NEXTAUTH_SECRET` with `openssl rand -base64 32` or another cryptographically secure generator.
+6. Deploy. The start command runs `prisma migrate deploy` before Next.js so a new database receives the required tables.
+
+If `NEXTAUTH_SECRET` is absent, public pages remain available but sign-in and private trip pages are intentionally disabled. Never commit a production secret or `DATABASE_URL` to the repository.
 
 Optional: Add a cron job later for periodic ThemeParks data sync.
 
@@ -65,7 +68,7 @@ prisma/
 - [x] Day planner UI (park/rest-day assignment and itinerary item CRUD)
 - [x] Restaurant / show / attraction browser with cached search
 - [x] Simple itinerary ordering (up/down controls)
-- [x] Auth.js GitHub authentication with user-scoped trips
+- [x] Auth.js email/password authentication with user-scoped trips
 - [x] Budget roll-up and richer Explore filters/live data
 - [x] Printable shareable trip summary
 - [x] AI-assisted itinerary suggestions (OpenAI or xAI)
@@ -77,7 +80,7 @@ The core planning loop is implemented. `POST /api/entities/sync` refreshes the W
 
 ### Phase 2 complete
 
-GitHub OAuth sessions replace the temporary local user. To claim trips created before authentication, set `MIGRATE_LOCAL_TRIPS_TO_EMAIL` to the intended account email for one login, then remove it. Trip details now roll up planned item costs against the budget. Explore supports park, type, text, and optional live-data filtering. Every trip also has a printable, unlisted share view; anyone with its opaque URL can view it.
+Email/password sessions replace the temporary local user. Passwords are salted and hashed with bcrypt and are never stored in readable form. To claim trips created before authentication, set `MIGRATE_LOCAL_TRIPS_TO_EMAIL` to the intended account email for one login, then remove it. Trip details now roll up planned item costs against the budget. Explore supports park, type, text, and optional live-data filtering. Every trip also has a printable, unlisted share view; anyone with its opaque URL can view it.
 
 ### Phase 3 complete
 

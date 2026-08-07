@@ -1,16 +1,23 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { authConfiguration } from "@/lib/auth";
+
+import { AuthForm } from "./auth-form";
+
 export const metadata: Metadata = { title: "Sign in | WDW Planner" };
 
 export default function SignInPage() {
-  return (
-    <div className="mx-auto max-w-md rounded-2xl border bg-white p-8 text-center shadow-sm">
-      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-purple-600">Welcome back</p>
-      <h1 className="mt-2 text-3xl font-bold">Sign in to WDW Planner</h1>
-      <p className="mt-3 text-slate-600">Keep your family’s trips private and available on every device.</p>
-      <Link href="/api/auth/signin/github" className="mt-7 inline-flex w-full justify-center rounded-full bg-slate-900 px-6 py-3 font-semibold text-white hover:bg-slate-700">Continue with GitHub</Link>
-      <p className="mt-5 text-xs text-slate-500">Your profile email is used only to associate your saved trips.</p>
-    </div>
-  );
+  if (!authConfiguration.isConfigured) {
+    return (
+      <div className="mx-auto max-w-lg rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center shadow-sm">
+        <h1 className="text-2xl font-bold text-amber-950">Sign-in is not configured</h1>
+        <p className="mt-3 text-amber-900">The site is online, but authentication is unavailable until the deployment administrator adds a secure session secret.</p>
+        <p className="mt-4 text-sm text-amber-800">Missing: {authConfiguration.missing.join(", ")}</p>
+        <Link href="/" className="mt-6 inline-flex rounded-full bg-amber-900 px-5 py-2.5 font-semibold text-white">Return home</Link>
+      </div>
+    );
+  }
+
+  return <AuthForm />;
 }

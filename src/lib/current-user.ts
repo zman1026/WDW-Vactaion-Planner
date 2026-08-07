@@ -1,12 +1,13 @@
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 
-import { authOptions } from "@/lib/auth";
+import { authConfiguration, authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const LOCAL_USER_EMAIL = "local-planner@wdw-planner.local";
 
 export async function getCurrentUser() {
+  if (!authConfiguration.isConfigured) return null;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return null;
   return prisma.user.findUnique({ where: { id: session.user.id } });

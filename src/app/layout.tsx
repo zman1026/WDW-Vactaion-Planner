@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getServerSession } from "next-auth";
 import Link from "next/link";
-import { authOptions } from "@/lib/auth";
+import { authConfiguration, authOptions } from "@/lib/auth";
 import { SignOutButton } from "./auth-controls";
 import "./globals.css";
 
@@ -11,12 +11,16 @@ export const metadata: Metadata = {
     "Plan every day of your Walt Disney World adventure: parks, attractions, restaurants, shows, budgets, and timelines.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const session = await getServerSession(authOptions);
+  const session = authConfiguration.isConfigured
+    ? await getServerSession(authOptions)
+    : null;
   return (
     <html lang="en">
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
@@ -38,7 +42,13 @@ export default async function RootLayout({
               <Link href="/explore" className="hover:underline">
                 Explore Parks
               </Link>
-              {session ? <SignOutButton /> : <Link href="/signin" className="hover:underline">Sign in</Link>}
+              {session ? (
+                <SignOutButton />
+              ) : authConfiguration.isConfigured ? (
+                <Link href="/signin" className="hover:underline">Sign in</Link>
+              ) : (
+                <span className="text-white/70" title="Authentication is not configured">Sign in unavailable</span>
+              )}
             </nav>
           </div>
         </header>

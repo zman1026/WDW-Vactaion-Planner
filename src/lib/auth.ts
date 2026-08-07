@@ -1,13 +1,34 @@
+import { compare } from "bcryptjs";
 import type { NextAuthOptions } from "next-auth";
-import GitHubProvider from "next-auth/providers/github";
+import CredentialsProvider from "next-auth/providers/credentials";
 
+import { signInSchema } from "@/lib/auth-validation";
 import { prisma } from "@/lib/prisma";
 
+export const authConfiguration = {
+  isConfigured: Boolean(process.env.NEXTAUTH_URL && process.env.NEXTAUTH_SECRET),
+  missing: [
+    !process.env.NEXTAUTH_URL && "NEXTAUTH_URL",
+    !process.env.NEXTAUTH_SECRET && "NEXTAUTH_SECRET",
+  ].filter(Boolean) as string[],
+};
+
 export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET,
   providers: [
-    GitHubProvider({
-      clientId: process.env.GITHUB_ID ?? "",
-      clientSecret: process.env.GITHUB_SECRET ?? "",
+    CredentialsProvider({
+      name: "Email and password",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        const result = signInSchema.safeParse(credentials);
+        if (!result.success) return null;
+        const user = await prisma.user.findUnique({ where: { email: result.data.email } });
+        if (!user?.passwordHash || !(await compare(result.data.password, user.passwordHash))) return null;
+        return { id: user.id, email: user.email, name: user.name };
+      },
     }),
   ],
   session: { strategy: "jwt" },
@@ -15,25 +36,16 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user }) {
       if (!user.email) return false;
-      const databaseUser = await prisma.user.upsert({
-        where: { email: user.email },
-        update: { name: user.name },
-        create: { email: user.email, name: user.name },
-      });
-
       if (process.env.MIGRATE_LOCAL_TRIPS_TO_EMAIL === user.email) {
         const local = await prisma.user.findUnique({ where: { email: "local-planner@wdw-planner.local" } });
-        if (local && local.id !== databaseUser.id) {
-          await prisma.trip.updateMany({ where: { userId: local.id }, data: { userId: databaseUser.id } });
+        if (local && local.id !== user.id) {
+          await prisma.trip.updateMany({ where: { userId: local.id }, data: { userId: user.id } });
         }
       }
       return true;
     },
     async jwt({ token, user }) {
-      if (user?.email) {
-        const databaseUser = await prisma.user.findUnique({ where: { email: user.email }, select: { id: true } });
-        token.userId = databaseUser?.id;
-      }
+      if (user?.id) token.userId = user.id;
       return token;
     },
     async session({ session, token }) {
