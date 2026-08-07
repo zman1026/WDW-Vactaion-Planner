@@ -3,16 +3,17 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/current-user";
 import {
   budgetToCents,
   calendarDateToUtc,
   createTripSchema,
 } from "@/lib/trip-validation";
 
-const LOCAL_USER_EMAIL = "local-planner@wdw-planner.local";
-
 export async function POST(request: Request) {
   try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ message: "Please sign in to create a trip." }, { status: 401 });
     const payload: unknown = await request.json();
     const input = createTripSchema.parse(payload);
     const startDate = calendarDateToUtc(input.startDate);
@@ -22,15 +23,6 @@ export async function POST(request: Request) {
     );
 
     const trip = await prisma.$transaction(async (database) => {
-      const user = await database.user.upsert({
-        where: { email: LOCAL_USER_EMAIL },
-        update: {},
-        create: {
-          email: LOCAL_USER_EMAIL,
-          name: "Local Planner",
-        },
-      });
-
       return database.trip.create({
         data: {
           userId: user.id,

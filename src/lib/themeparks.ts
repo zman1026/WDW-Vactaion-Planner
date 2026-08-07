@@ -26,9 +26,9 @@ export interface ThemeParksEntity {
   parentId?: string;
   destination?: string;
   slug?: string;
-  location?: any;
+  location?: unknown;
   // many more fields possible – we keep it flexible
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface LiveData {
@@ -38,12 +38,12 @@ export interface LiveData {
   status?: string;
   queue?: {
     STANDBY?: { waitTime?: number | null; status?: string };
-    RETURN_TIME?: any;
+    RETURN_TIME?: unknown;
     // etc.
   };
-  showtimes?: any[];
+  showtimes?: unknown[];
   // ...
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 async function fetchJson<T>(path: string): Promise<T> {
@@ -88,6 +88,15 @@ export const WDW_DESTINATION_ID = "e957da41-3552-4cf6-b636-5babc5cbc4e5"; // ver
 /** Get full WDW hierarchy (destination → parks → attractions/restaurants/shows/hotels) */
 export async function getWDWChildren() {
   return getEntityChildren(WDW_DESTINATION_ID);
+}
+
+/** Fetch the destination and all descendants returned by ThemeParks.wiki. */
+export async function getWDWHierarchy() {
+  const [destination, children] = await Promise.all([
+    getEntity(WDW_DESTINATION_ID),
+    getEntityChildren(WDW_DESTINATION_ID),
+  ]);
+  return [destination, ...children.children];
 }
 
 /** Example helper: get Magic Kingdom live waits (you will look up the real park ID) */

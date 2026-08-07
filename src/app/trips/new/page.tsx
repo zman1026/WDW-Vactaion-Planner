@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 
+import { requireCurrentUser } from "@/lib/current-user";
+
 import { TripForm } from "./trip-form";
 
 export const metadata: Metadata = {
   title: "Create a New Trip | WDW Planner",
 };
 
-export default function NewTripPage() {
+export default async function NewTripPage() {
+  await requireCurrentUser();
   return (
     <div className="mx-auto max-w-3xl space-y-8">
       <header className="space-y-3 text-center">

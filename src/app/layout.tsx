@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import { getServerSession } from "next-auth";
 import Link from "next/link";
+import { authOptions } from "@/lib/auth";
+import { SignOutButton } from "./auth-controls";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -8,11 +11,12 @@ export const metadata: Metadata = {
     "Plan every day of your Walt Disney World adventure: parks, attractions, restaurants, shows, budgets, and timelines.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getServerSession(authOptions);
   return (
     <html lang="en">
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
@@ -34,6 +38,7 @@ export default function RootLayout({
               <Link href="/explore" className="hover:underline">
                 Explore Parks
               </Link>
+              {session ? <SignOutButton /> : <Link href="/signin" className="hover:underline">Sign in</Link>}
             </nav>
           </div>
         </header>

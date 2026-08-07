@@ -52,7 +52,7 @@ export default function HomePage() {
       {/* Status note */}
       <section className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center">
         <p className="text-amber-900 font-medium">
-          🚧 Project is under active construction. Core data layer + trip planner coming next.
+          WDW Planner now supports private trips, day-by-day planning, budgets, live park context, and AI-assisted suggestions.
         </p>
         <p className="mt-2 text-sm text-amber-800">
           Powered by ThemeParks.wiki for live park data. Always double-check the official

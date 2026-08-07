@@ -2,7 +2,10 @@ import { differenceInCalendarDays, format } from "date-fns";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { requireCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
+
+import { DayPlanner } from "./day-planner";
 
 interface TripPageProps {
   params: Promise<{ tripId: string }>;
@@ -20,18 +23,25 @@ export async function generateMetadata({ params }: TripPageProps): Promise<Metad
 
 export default async function TripPage({ params }: TripPageProps) {
   const { tripId } = await params;
-  const trip = await prisma.trip.findUnique({
-    where: { id: tripId },
+  const user = await requireCurrentUser();
+  const [trip, parks] = await Promise.all([prisma.trip.findFirst({
+    where: { id: tripId, userId: user.id },
     include: {
       dayPlans: {
         orderBy: { date: "asc" },
+        include: { items: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } },
       },
     },
-  });
+  }), prisma.parkEntity.findMany({
+    where: { entityType: "PARK" },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  })]);
 
   if (!trip) notFound();
 
   const numberOfNights = differenceInCalendarDays(trip.endDate, trip.startDate);
+  const plannedCostCents = trip.dayPlans.reduce((total, day) => total + day.items.reduce((dayTotal, item) => dayTotal + (item.estimatedCostCents ?? 0), 0), 0);
   const budget =
     trip.budgetCents === null
       ? null
@@ -55,6 +65,14 @@ export default async function TripPage({ params }: TripPageProps) {
             <Summary label="Nights" value={String(numberOfNights)} />
             <Summary label="Total budget" value={budget ?? "Not set"} />
           </dl>
+          <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <span className="font-semibold text-blue-950">Planned itinerary cost</span>
+              <span className="font-bold text-blue-950">{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(plannedCostCents / 100)}{trip.budgetCents !== null ? ` of ${budget}` : ""}</span>
+            </div>
+            {trip.budgetCents !== null && <div className="mt-2 h-2 overflow-hidden rounded-full bg-blue-100"><div className={`h-full rounded-full ${plannedCostCents > trip.budgetCents ? "bg-red-500" : "bg-blue-600"}`} style={{ width: `${Math.min(100, trip.budgetCents === 0 ? (plannedCostCents ? 100 : 0) : plannedCostCents / trip.budgetCents * 100)}%` }} /></div>}
+            {trip.budgetCents !== null && plannedCostCents > trip.budgetCents && <p className="mt-2 text-xs font-semibold text-red-700">This plan is over budget by {new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format((plannedCostCents - trip.budgetCents) / 100)}.</p>}
+          </div>
 
           {trip.notes && (
             <div className="mt-6 rounded-xl bg-slate-50 p-4">
@@ -62,6 +80,7 @@ export default async function TripPage({ params }: TripPageProps) {
               <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-600">{trip.notes}</p>
             </div>
           )}
+          <a href={`/share/${trip.id}`} className="mt-5 inline-flex text-sm font-semibold text-blue-700 hover:underline">Open printable share view →</a>
         </div>
       </section>
 
@@ -71,10 +90,14 @@ export default async function TripPage({ params }: TripPageProps) {
             <h2 className="text-2xl font-bold">Your days</h2>
             <p className="mt-1 text-sm text-slate-600">Each day is ready for parks, dining, and family favorites.</p>
           </div>
-          <span className="rounded-full bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-700">Planning canvas ready</span>
+          {parks.length === 0 && (
+            <p className="rounded-full bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-800">
+              Park data will sync when you first search for an item.
+            </p>
+          )}
         </div>
 
-        <ol className="grid gap-4 md:grid-cols-2">
+        <ol className="grid gap-4 lg:grid-cols-2">
           {trip.dayPlans.map((dayPlan, index) => (
             <li key={dayPlan.id} className="rounded-2xl border bg-white p-5 shadow-sm">
               <div className="flex items-center gap-4">
@@ -86,9 +109,7 @@ export default async function TripPage({ params }: TripPageProps) {
                   <h3 className="font-semibold text-slate-900">{format(dayPlan.date, "EEEE, MMMM d")}</h3>
                 </div>
               </div>
-              <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                No plans yet — this day is yours to shape.
-              </div>
+              <DayPlanner tripId={trip.id} dayPlanId={dayPlan.id} parkId={dayPlan.parkId} parks={parks} items={dayPlan.items} />
             </li>
           ))}
         </ol>

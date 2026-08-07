@@ -20,7 +20,7 @@ An online planning hub for individuals and families to plan every aspect of a Wa
 ## Getting Started (Local)
 
 1. Clone the repo
-2. Copy `.env.example` → `.env` and fill in `DATABASE_URL`
+2. Copy `.env.example` → `.env` and fill in `DATABASE_URL`. Configure a GitHub OAuth app and set `NEXTAUTH_SECRET`, `GITHUB_ID`, and `GITHUB_SECRET`; use `http://localhost:3000/api/auth/callback/github` as the local callback URL.
 3. Install dependencies:
    ```bash
    npm install
@@ -60,13 +60,28 @@ prisma/
 ## Roadmap (high level)
 
 - [x] Project scaffolding
-- [ ] ThemeParks data sync & caching
-- [ ] Trip creation (dates, budget)
-- [ ] Day planner UI (drag & drop itinerary)
-- [ ] Restaurant / show / attraction browser
-- [ ] Simple auth (email or social)
-- [ ] AI-assisted itinerary suggestions (Grok / ChatGPT)
-- [ ] Export / share trip plans
+- [x] Trip creation and per-user trip list (dates, budget, day count)
+- [x] Idempotent ThemeParks WDW hierarchy sync and database cache
+- [x] Day planner UI (park/rest-day assignment and itinerary item CRUD)
+- [x] Restaurant / show / attraction browser with cached search
+- [x] Simple itinerary ordering (up/down controls)
+- [x] Auth.js GitHub authentication with user-scoped trips
+- [x] Budget roll-up and richer Explore filters/live data
+- [x] Printable shareable trip summary
+- [x] AI-assisted itinerary suggestions (OpenAI or xAI)
+- [x] Park-hours, showtime, and time-conflict helper
+
+### Phase 1 complete
+
+The core planning loop is implemented. `POST /api/entities/sync` refreshes the WDW entity cache, and the entity search endpoint automatically attempts the first sync when the cache is empty. All sync writes are upserts, so refreshes are safe to repeat.
+
+### Phase 2 complete
+
+GitHub OAuth sessions replace the temporary local user. To claim trips created before authentication, set `MIGRATE_LOCAL_TRIPS_TO_EMAIL` to the intended account email for one login, then remove it. Trip details now roll up planned item costs against the budget. Explore supports park, type, text, and optional live-data filtering. Every trip also has a printable, unlisted share view; anyone with its opaque URL can view it.
+
+### Phase 3 complete
+
+Each park day can request an AI-generated itinerary based on party preferences and existing items. Suggestions use a Responses API-compatible client, are schema validated, restricted to cached entities, and require explicit confirmation before being added. The timing helper detects overlapping itinerary items and can fetch available live park hours and planned-show showtimes. Always verify generated plans and third-party timing data in My Disney Experience.
 
 ## Data Source Notes
 
