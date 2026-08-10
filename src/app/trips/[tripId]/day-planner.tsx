@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState, useTransition } from "react";
 
-import { assignPark, removeDayPlanItem, reorderDayPlanItem, saveDayPlanItem } from "./actions";
+import { assignPark, clearDay, copyDay, removeDayPlanItem, reorderDayPlanItem, saveDayPlanItem } from "./actions";
 import { AiSuggestions } from "./ai-suggestions";
 import { TimingHelper } from "./timing-helper";
 
@@ -21,11 +21,12 @@ type PlanItem = {
 
 type SearchEntity = { id: string; name: string; entityType: string };
 
-export function DayPlanner({ tripId, dayPlanId, parkId, parks, items }: { tripId: string; dayPlanId: string; parkId: string | null; parks: Park[]; items: PlanItem[] }) {
+export function DayPlanner({ tripId, dayPlanId, parkId, parks, items, days }: { tripId: string; dayPlanId: string; parkId: string | null; parks: Park[]; items: PlanItem[]; days: Array<{ id: string; label: string }> }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [editor, setEditor] = useState<PlanItem | "new" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copyTarget, setCopyTarget] = useState("");
 
   function run(action: () => Promise<void>, after?: () => void) {
     setError(null);
@@ -61,14 +62,14 @@ export function DayPlanner({ tripId, dayPlanId, parkId, parks, items }: { tripId
         <ol className="space-y-2">
           {items.map((item, index) => (
             <li key={item.id} className="rounded-xl border bg-slate-50 p-3">
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-col items-start justify-between gap-3 sm:flex-row">
                 <div className="min-w-0">
                   <p className="truncate font-semibold text-slate-900">{item.title}</p>
                   <p className="mt-0.5 text-xs font-medium text-purple-700">{item.entityType}{item.startTime ? ` · ${item.startTime}${item.endTime ? `–${item.endTime}` : ""}` : ""}</p>
                   {item.estimatedCostCents !== null && <p className="mt-1 text-xs text-slate-600">Estimated ${(item.estimatedCostCents / 100).toFixed(2)}</p>}
                   {item.notes && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">{item.notes}</p>}
                 </div>
-                <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                <div className="flex shrink-0 flex-wrap justify-start gap-1 sm:justify-end">
                   <SmallButton label="Move up" disabled={isPending || index === 0} onClick={() => run(() => reorderDayPlanItem({ itemId: item.id, direction: "up" }))}>↑</SmallButton>
                   <SmallButton label="Move down" disabled={isPending || index === items.length - 1} onClick={() => run(() => reorderDayPlanItem({ itemId: item.id, direction: "down" }))}>↓</SmallButton>
                   <SmallButton label={`Edit ${item.title}`} disabled={isPending} onClick={() => setEditor(item)}>Edit</SmallButton>
@@ -81,6 +82,12 @@ export function DayPlanner({ tripId, dayPlanId, parkId, parks, items }: { tripId
       )}
 
       {error && <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+
+      <div className="flex flex-col gap-2 rounded-xl border bg-slate-50 p-3 sm:flex-row sm:items-center">
+        <select value={copyTarget} onChange={(event) => setCopyTarget(event.target.value)} disabled={isPending || items.length === 0} className="min-w-0 flex-1 rounded-lg border bg-white px-3 py-2 text-sm"><option value="">Copy this day to…</option>{days.filter((day) => day.id !== dayPlanId).map((day) => <option key={day.id} value={day.id}>{day.label}</option>)}</select>
+        <button type="button" disabled={isPending || !copyTarget || items.length === 0} onClick={() => run(() => copyDay({ sourceDayPlanId: dayPlanId, targetDayPlanId: copyTarget }), () => setCopyTarget(""))} className="rounded-full border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 disabled:opacity-40">Copy items</button>
+        <button type="button" disabled={isPending || items.length === 0} onClick={() => { if (window.confirm("Remove every itinerary item from this day? The park assignment will remain.")) run(() => clearDay({ dayPlanId })); }} className="rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 disabled:opacity-40">Clear day</button>
+      </div>
 
       <TimingHelper parkId={parkId} items={items} />
 
@@ -158,7 +165,7 @@ function ItemEditor({ dayPlanId, item, isPending, onCancel, onSave }: { dayPlanI
       </> : <>
         <div className="flex items-center justify-between rounded-lg border bg-white px-3 py-2 text-sm"><span><strong>{selected.name}</strong> <span className="text-slate-500">· {selected.entityType}</span></span><button type="button" onClick={() => setSelected(null)} className="text-blue-700 hover:underline">Change</button></div>
         <label className="block text-xs font-semibold text-slate-600">Display title<input name="title" defaultValue={item?.title ?? selected.name} maxLength={150} required className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm font-normal text-slate-900" /></label>
-        <div className="grid grid-cols-2 gap-2"><label className="text-xs font-semibold text-slate-600">Start time<input name="startTime" type="time" defaultValue={item?.startTime ?? ""} className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm font-normal" /></label><label className="text-xs font-semibold text-slate-600">End time<input name="endTime" type="time" defaultValue={item?.endTime ?? ""} className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm font-normal" /></label></div>
+        <div className="grid gap-2 sm:grid-cols-2"><label className="text-xs font-semibold text-slate-600">Start time<input name="startTime" type="time" defaultValue={item?.startTime ?? ""} className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm font-normal" /></label><label className="text-xs font-semibold text-slate-600">End time<input name="endTime" type="time" defaultValue={item?.endTime ?? ""} className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm font-normal" /></label></div>
         <label className="block text-xs font-semibold text-slate-600">Estimated cost ($)<input name="estimatedCost" type="number" min="0" step="0.01" defaultValue={item?.estimatedCostCents == null ? "" : (item.estimatedCostCents / 100).toFixed(2)} className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm font-normal" /></label>
         <label className="block text-xs font-semibold text-slate-600">Notes<textarea name="notes" defaultValue={item?.notes ?? ""} maxLength={1000} rows={2} className="mt-1 w-full rounded-lg border bg-white px-3 py-2 text-sm font-normal" /></label>
         <button type="submit" disabled={isPending} className="rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{isPending ? "Saving…" : "Save item"}</button>

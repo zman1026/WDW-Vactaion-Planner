@@ -1,6 +1,7 @@
 import { getEntityLive } from "@/lib/themeparks";
 import { prisma } from "@/lib/prisma";
 import { getDescendantEntityIds } from "@/lib/entity-hierarchy";
+import { SyncEntitiesButton } from "@/components/sync-entities-button";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
 
   return <div className="space-y-8">
     <header><h1 className="text-3xl font-bold">Explore Walt Disney World</h1><p className="mt-2 text-slate-600">Browse cached attractions, restaurants, shows, and experiences. Add a park filter to view optional live status.</p></header>
-    {parks.length === 0 && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900"><p className="font-semibold">Park data has not been synced yet.</p><p className="mt-1 text-sm">Search from a trip planning day to trigger the initial sync, or send a POST request to <code>/api/entities/sync</code>.</p></div>}
+    {parks.length === 0 && <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900"><div><p className="font-semibold">Park data has not been synced yet.</p><p className="mt-1 text-sm">Load the WDW directory to browse parks, hotels, attractions, restaurants, and shows.</p></div><SyncEntitiesButton /></div>}
     <form className="grid gap-3 rounded-2xl border bg-white p-5 shadow-sm md:grid-cols-[1fr_1fr_1.5fr_auto]">
       <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Park<select name="park" defaultValue={params.park ?? ""} className="mt-1 block w-full rounded-lg border px-3 py-2 text-sm font-normal normal-case text-slate-900"><option value="">All parks</option>{parks.map((park) => <option key={park.id} value={park.id}>{park.name}</option>)}</select></label>
       <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Type<select name="type" defaultValue={type ?? ""} className="mt-1 block w-full rounded-lg border px-3 py-2 text-sm font-normal normal-case text-slate-900"><option value="">All types</option>{TYPES.map((value) => <option key={value}>{value}</option>)}</select></label>

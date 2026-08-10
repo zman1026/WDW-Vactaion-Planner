@@ -47,7 +47,9 @@ An online planning hub for individuals and families to plan every aspect of a Wa
 
 If `NEXTAUTH_SECRET` is absent, public pages remain available but sign-in and private trip pages are intentionally disabled. Never commit a production secret or `DATABASE_URL` to the repository.
 
-Optional: Add a cron job later for periodic ThemeParks data sync.
+Optional: schedule a periodic `POST /api/entities/sync` job to refresh the ThemeParks directory. The sync is idempotent, and the application also offers an in-product sync button when the cache is empty.
+
+The public repository name contains the historical `Vactaion` typo. Deployment and application behavior are unaffected.
 
 ## Project Structure
 
@@ -73,6 +75,10 @@ prisma/
 - [x] Printable shareable trip summary
 - [x] AI-assisted itinerary suggestions (OpenAI or xAI)
 - [x] Park-hours, showtime, and time-conflict helper
+- [x] Trip editing/deletion with safe date-range reconciliation
+- [x] WDW hotel assignment and share-view display
+- [x] Party profile reused by AI suggestions
+- [x] Clear/copy planning-day actions and mobile planner improvements
 
 ### Phase 1 complete
 
@@ -85,6 +91,10 @@ Email/password sessions replace the temporary local user. Passwords are salted a
 ### Phase 3 complete
 
 Each park day can request an AI-generated itinerary based on party preferences and existing items. Suggestions use a Responses API-compatible client, are schema validated, restricted to cached entities, and require explicit confirmation before being added. The timing helper detects overlapping itinerary items and can fetch available live park hours and planned-show showtimes. Always verify generated plans and third-party timing data in My Disney Experience.
+
+### Phase 4 complete
+
+Trips can be edited or deleted, assigned a cached WDW hotel, and given a reusable party profile containing party size, ages, dietary/accessibility notes, must-dos, and avoids. Extending dates creates missing planning days. Shortening dates removes only empty out-of-range days; if an excluded day has a park, notes, or itinerary items, the update is blocked until that day is cleared so planned data is never silently lost. Day cards support clearing all items and appending a copy of one day's items to another day in the same trip. Hotel and party details appear in the printable share view, and saved party details are automatically included in AI suggestions.
 
 ## Data Source Notes
 

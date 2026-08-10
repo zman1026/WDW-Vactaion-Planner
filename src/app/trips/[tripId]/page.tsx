@@ -4,8 +4,11 @@ import { notFound } from "next/navigation";
 
 import { requireCurrentUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
+import { normalizePartyProfile } from "@/lib/party-profile";
 
 import { DayPlanner } from "./day-planner";
+import { SyncEntitiesButton } from "@/components/sync-entities-button";
+import { TripSettings } from "./trip-settings";
 
 interface TripPageProps {
   params: Promise<{ tripId: string }>;
@@ -24,7 +27,7 @@ export async function generateMetadata({ params }: TripPageProps): Promise<Metad
 export default async function TripPage({ params }: TripPageProps) {
   const { tripId } = await params;
   const user = await requireCurrentUser();
-  const [trip, parks] = await Promise.all([prisma.trip.findFirst({
+  const [trip, parks, hotels] = await Promise.all([prisma.trip.findFirst({
     where: { id: tripId, userId: user.id },
     include: {
       dayPlans: {
@@ -34,6 +37,10 @@ export default async function TripPage({ params }: TripPageProps) {
     },
   }), prisma.parkEntity.findMany({
     where: { entityType: "PARK" },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  }), prisma.parkEntity.findMany({
+    where: { entityType: "HOTEL" },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   })]);
@@ -48,6 +55,8 @@ export default async function TripPage({ params }: TripPageProps) {
       : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
           trip.budgetCents / 100,
         );
+  const selectedHotel = hotels.find((hotel) => hotel.id === trip.hotelId);
+  const partyProfile = normalizePartyProfile(trip.partyProfile);
 
   return (
     <div className="space-y-8">
@@ -65,6 +74,7 @@ export default async function TripPage({ params }: TripPageProps) {
             <Summary label="Nights" value={String(numberOfNights)} />
             <Summary label="Total budget" value={budget ?? "Not set"} />
           </dl>
+          {selectedHotel && <p className="mt-4 rounded-xl bg-purple-50 p-4 text-sm text-purple-900"><span className="font-semibold">Hotel:</span> {selectedHotel.name}</p>}
           <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
               <span className="font-semibold text-blue-950">Planned itinerary cost</span>
@@ -84,6 +94,8 @@ export default async function TripPage({ params }: TripPageProps) {
         </div>
       </section>
 
+      <TripSettings trip={{ id: trip.id, name: trip.name, startDate: format(trip.startDate, "yyyy-MM-dd"), endDate: format(trip.endDate, "yyyy-MM-dd"), budget: trip.budgetCents === null ? "" : (trip.budgetCents / 100).toFixed(2), notes: trip.notes ?? "", hotelId: trip.hotelId, partyProfile }} hotels={hotels} />
+
       <section>
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -91,13 +103,11 @@ export default async function TripPage({ params }: TripPageProps) {
             <p className="mt-1 text-sm text-slate-600">Each day is ready for parks, dining, and family favorites.</p>
           </div>
           {parks.length === 0 && (
-            <p className="rounded-full bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-800">
-              Park data will sync when you first search for an item.
-            </p>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4"><p className="mb-3 text-sm font-semibold text-amber-900">The WDW directory is empty. Sync it now to assign parks, hotels, and itinerary items.</p><SyncEntitiesButton /></div>
           )}
         </div>
 
-        <ol className="grid gap-4 lg:grid-cols-2">
+        <ol className="space-y-5">
           {trip.dayPlans.map((dayPlan, index) => (
             <li key={dayPlan.id} className="rounded-2xl border bg-white p-5 shadow-sm">
               <div className="flex items-center gap-4">
@@ -109,7 +119,7 @@ export default async function TripPage({ params }: TripPageProps) {
                   <h3 className="font-semibold text-slate-900">{format(dayPlan.date, "EEEE, MMMM d")}</h3>
                 </div>
               </div>
-              <DayPlanner tripId={trip.id} dayPlanId={dayPlan.id} parkId={dayPlan.parkId} parks={parks} items={dayPlan.items} />
+              <DayPlanner tripId={trip.id} dayPlanId={dayPlan.id} parkId={dayPlan.parkId} parks={parks} items={dayPlan.items} days={trip.dayPlans.map((day, dayIndex) => ({ id: day.id, label: `Day ${dayIndex + 1} · ${format(day.date, "MMM d")}` }))} />
             </li>
           ))}
         </ol>

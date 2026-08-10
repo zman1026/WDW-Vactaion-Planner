@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const suggestionRequestSchema = z.object({
   dayPlanId: z.string().cuid(),
-  preferences: z.string().trim().min(3, "Tell us a little about your party.").max(1_000),
+  preferences: z.string().trim().max(1_000).default(""),
 });
 
 export const suggestionItemSchema = z.object({

@@ -6,6 +6,7 @@ import { suggestionRequestSchema, suggestionResponseSchema } from "@/lib/ai-vali
 import { getCurrentUser } from "@/lib/current-user";
 import { getDescendantEntityIds } from "@/lib/entity-hierarchy";
 import { prisma } from "@/lib/prisma";
+import { normalizePartyProfile, partyProfileSummary } from "@/lib/party-profile";
 
 export async function POST(request: Request, { params }: { params: Promise<{ tripId: string }> }) {
   try {
@@ -15,7 +16,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
     const input = suggestionRequestSchema.parse(await request.json());
     const day = await prisma.dayPlan.findFirst({
       where: { id: input.dayPlanId, tripId, trip: { userId: user.id } },
-      include: { trip: { select: { name: true, budgetCents: true, notes: true } }, items: { orderBy: { sortOrder: "asc" } }, },
+      include: { trip: { select: { name: true, budgetCents: true, notes: true, partyProfile: true } }, items: { orderBy: { sortOrder: "asc" } }, },
     });
     if (!day) return NextResponse.json({ message: "Planning day not found." }, { status: 404 });
     if (!day.parkId) return NextResponse.json({ message: "Assign a park before requesting suggestions." }, { status: 400 });
@@ -32,7 +33,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tri
       model: process.env.AI_MODEL ?? (usingOpenAI ? "gpt-5.6-luna" : "grok-3-mini"),
       store: false,
       safety_identifier: user.id,
-      input: `Create a realistic, family-friendly one-day itinerary. Use ONLY candidate entity IDs below and do not repeat existing items. Keep times chronological with reasonable breaks. Costs are estimates in cents.\n\nTrip: ${day.trip.name}\nPark: ${park?.name ?? "WDW park"}\nParty preferences: ${input.preferences}\nTrip notes: ${day.trip.notes ?? "None"}\nExisting items: ${JSON.stringify(day.items.map((item) => ({ title: item.title, startTime: item.startTime, endTime: item.endTime })))}\nCandidates: ${JSON.stringify(candidates)}`,
+      input: `Create a realistic, family-friendly one-day itinerary. Use ONLY candidate entity IDs below and do not repeat existing items. Keep times chronological with reasonable breaks. Costs are estimates in cents.\n\nTrip: ${day.trip.name}\nPark: ${park?.name ?? "WDW park"}\nSaved party profile:\n${partyProfileSummary(normalizePartyProfile(day.trip.partyProfile))}\nAdditional preferences for this request: ${input.preferences}\nTrip notes: ${day.trip.notes ?? "None"}\nExisting items: ${JSON.stringify(day.items.map((item) => ({ title: item.title, startTime: item.startTime, endTime: item.endTime })))}\nCandidates: ${JSON.stringify(candidates)}`,
       text: { format: { type: "json_schema", name: "wdw_itinerary", strict: true, schema: {
         type: "object", additionalProperties: false, required: ["summary", "items"], properties: {
           summary: { type: "string" }, items: { type: "array", minItems: 1, maxItems: 8, items: { type: "object", additionalProperties: false, required: ["entityId", "entityType", "title", "startTime", "endTime", "estimatedCostCents", "notes", "reason"], properties: {

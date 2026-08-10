@@ -9,7 +9,7 @@ function isCalendarDate(value: string) {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
-export const createTripSchema = z
+export const tripDetailsSchema = z
   .object({
     name: z
       .string()
@@ -36,8 +36,9 @@ export const createTripSchema = z
       .max(2_000, "Notes must be 2,000 characters or fewer.")
       .optional()
       .default(""),
-  })
-  .superRefine(({ startDate, endDate }, context) => {
+  });
+
+export const createTripSchema = tripDetailsSchema.superRefine(({ startDate, endDate }, context) => {
     if (!isCalendarDate(startDate) || !isCalendarDate(endDate)) return;
 
     if (endDate < startDate) {
