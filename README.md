@@ -40,10 +40,10 @@ An online planning hub for individuals and families to plan every aspect of a Wa
 
 1. Create a new Railway project
 2. Connect this GitHub repository
-3. Add a PostgreSQL database service
-4. Railway will automatically set `DATABASE_URL`
+3. Add a PostgreSQL database service.
+4. In the WDW Planner web service, open **Variables**, choose **Add Reference Variable**, and select `DATABASE_URL` from the PostgreSQL service. Its value should display as `${{Postgres.DATABASE_URL}}` when that service is named `Postgres`; never paste the local `.env.example` URL into Railway.
 5. Add `NEXTAUTH_URL` (your Railway public URL) and `NEXTAUTH_SECRET` to the web service variables. Generate `NEXTAUTH_SECRET` with `openssl rand -base64 32` or another cryptographically secure generator.
-6. Deploy. The start command runs `prisma migrate deploy` before Next.js so a new database receives the required tables.
+6. Deploy. The start command validates the database URL and runs `prisma migrate deploy` with bounded retries before Next.js starts, so a new database receives the required tables.
 
 If `NEXTAUTH_SECRET` is absent, public pages remain available but sign-in and private trip pages are intentionally disabled. Never commit a production secret or `DATABASE_URL` to the repository.
 
@@ -79,6 +79,8 @@ prisma/
 - [x] WDW hotel assignment and share-view display
 - [x] Party profile reused by AI suggestions
 - [x] Clear/copy planning-day actions and mobile planner improvements
+- [x] Flexible item timing: fixed reservations, part-of-day preferences, or anytime
+- [x] Park-scoped searchable offering dropdowns by category
 
 ### Phase 1 complete
 
@@ -95,6 +97,10 @@ Each park day can request an AI-generated itinerary based on party preferences a
 ### Phase 4 complete
 
 Trips can be edited or deleted, assigned a cached WDW hotel, and given a reusable party profile containing party size, ages, dietary/accessibility notes, must-dos, and avoids. Extending dates creates missing planning days. Shortening dates removes only empty out-of-range days; if an excluded day has a park, notes, or itinerary items, the update is blocked until that day is cleared so planned data is never silently lost. Day cards support clearing all items and appending a copy of one day's items to another day in the same trip. Hotel and party details appear in the printable share view, and saved party details are automatically included in AI suggestions.
+
+Itinerary timing is independent of entity type. Attractions, restaurants, shows, and experiences can use a fixed reservation/showtime, a preferred morning/afternoon/evening slot, or remain flexible for any time. Only fixed items participate in exact overlap warnings.
+
+The item picker supports discovery as well as name search. Selecting Attractions, Restaurants, Shows, or Experiences loads the available cached offerings for that day's park; users can browse the dropdown alphabetically or type to filter it.
 
 ## Data Source Notes
 

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-type Item = { id: string; entityId: string; title: string; startTime: string | null; endTime: string | null };
+type Item = { id: string; entityId: string; title: string; timingType: string; startTime: string | null; endTime: string | null };
 type LiveEntry = { id: string; name: string; status?: string; operatingHours?: Array<{ type?: string; startTime?: string; endTime?: string }>; showtimes?: Array<{ type?: string; startTime?: string; endTime?: string }> };
 
 function clock(value?: string) {
@@ -16,8 +16,8 @@ export function TimingHelper({ parkId, items }: { parkId: string | null; items: 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const conflicts = useMemo(() => items.flatMap((item, index) => {
-    if (!item.startTime || !item.endTime) return [];
-    const other = items.slice(index + 1).find((candidate) => candidate.startTime && candidate.endTime && item.startTime! < candidate.endTime && candidate.startTime < item.endTime!);
+    if (item.timingType !== "EXACT" || !item.startTime || !item.endTime) return [];
+    const other = items.slice(index + 1).find((candidate) => candidate.timingType === "EXACT" && candidate.startTime && candidate.endTime && item.startTime! < candidate.endTime && candidate.startTime < item.endTime!);
     return other ? [`${item.title} overlaps ${other.title}.`] : [];
   }), [items]);
 

@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "prestart": "prisma migrate deploy",
+    "prestart": "node scripts/migrate-with-retry.mjs",
     "start": "next start",
     "lint": "eslint",
     "db:generate": "prisma generate",

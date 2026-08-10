@@ -64,6 +64,8 @@ model DayPlanItem {
   entityId    String   // ThemeParks.wiki entity ID (attraction, restaurant, show, etc.)
   entityType  String   // "ATTRACTION" | "RESTAURANT" | "SHOW" | "HOTEL" | "EXPERIENCE"
   title       String   // cached name for display
+  timingType  String   @default("FLEXIBLE") // EXACT | TIME_OF_DAY | FLEXIBLE
+  timeOfDay   String?  // MORNING | AFTERNOON | EVENING when timingType is TIME_OF_DAY
   startTime   String?  // "09:30" or null
   endTime     String?  // "10:45" or null
   estimatedCostCents Int? 

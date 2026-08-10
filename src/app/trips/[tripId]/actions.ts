@@ -92,7 +92,7 @@ export async function copyDay(input: unknown) {
   const target = await prisma.dayPlan.findFirst({ where: { id: parsed.targetDayPlanId, tripId: source.tripId, trip: { userId: user.id } }, select: { id: true } });
   if (!target) throw new Error("Target day not found.");
   const last = await prisma.dayPlanItem.aggregate({ where: { dayPlanId: target.id }, _max: { sortOrder: true } });
-  await prisma.dayPlanItem.createMany({ data: source.items.map((item, index) => ({ dayPlanId: target.id, entityId: item.entityId, entityType: item.entityType, title: item.title, startTime: item.startTime, endTime: item.endTime, estimatedCostCents: item.estimatedCostCents, notes: item.notes, sortOrder: (last._max.sortOrder ?? -1) + index + 1 })) });
+  await prisma.dayPlanItem.createMany({ data: source.items.map((item, index) => ({ dayPlanId: target.id, entityId: item.entityId, entityType: item.entityType, title: item.title, timingType: item.timingType, timeOfDay: item.timeOfDay, startTime: item.startTime, endTime: item.endTime, estimatedCostCents: item.estimatedCostCents, notes: item.notes, sortOrder: (last._max.sortOrder ?? -1) + index + 1 })) });
   revalidatePath(`/trips/${source.tripId}`);
 }
 
@@ -113,7 +113,12 @@ export async function saveDayPlanItem(input: DayPlanItemInput) {
   const dayPlan = await ownedDayPlan(parsed.dayPlanId);
   if (!dayPlan) throw new Error("Planning day not found.");
   const estimatedCostCents = parsed.estimatedCost === "" ? null : Math.round(Number(parsed.estimatedCost) * 100);
-  const data = { entityId: parsed.entityId, entityType: parsed.entityType, title: parsed.title, startTime: parsed.startTime, endTime: parsed.endTime, estimatedCostCents, notes: parsed.notes };
+  const timing = parsed.timingType === "EXACT"
+    ? { timingType: parsed.timingType, timeOfDay: null, startTime: parsed.startTime, endTime: parsed.endTime }
+    : parsed.timingType === "TIME_OF_DAY"
+      ? { timingType: parsed.timingType, timeOfDay: parsed.timeOfDay, startTime: null, endTime: null }
+      : { timingType: parsed.timingType, timeOfDay: null, startTime: null, endTime: null };
+  const data = { entityId: parsed.entityId, entityType: parsed.entityType, title: parsed.title, ...timing, estimatedCostCents, notes: parsed.notes };
 
   if (parsed.id) {
     const existing = await prisma.dayPlanItem.findFirst({ where: { id: parsed.id, dayPlanId: dayPlan.id }, select: { id: true } });
