@@ -62,6 +62,12 @@ prisma/
   schema.prisma  # Database models (User, Trip, DayPlan, ParkEntity, etc.)
 ```
 
+## Product design system
+
+- Warm family-travel journal palette with navy, antique gold, parchment, and park-specific accents
+- Shared cards, controls, buttons, badges, empty states, budget meter, and accessible modal primitives
+- Focused trip workspace with a scrollable day rail, timeline bands, and mobile sheet editing
+
 ## Roadmap (high level)
 
 - [x] Project scaffolding

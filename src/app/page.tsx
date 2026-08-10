@@ -1,79 +1,24 @@
 import Link from "next/link";
+import { buttonStyles } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 export default function HomePage() {
-  return (
-    <div className="space-y-12">
-      {/* Hero */}
-      <section className="text-center space-y-6 py-12">
-        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-slate-900">
-          Plan your perfect{" "}
-          <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 bg-clip-text text-transparent">
-            Walt Disney World
-          </span>{" "}
-          adventure
-        </h1>
-        <p className="max-w-2xl mx-auto text-lg text-slate-600">
-          Pick your travel dates, build day-by-day itineraries, choose restaurants,
-          shows, attractions, and experiences — all while keeping track of time
-          slots and budgets for the whole family.
-        </p>
-        <div className="flex flex-wrap justify-center gap-4 pt-4">
-          <Link
-            href="/trips/new"
-            className="rounded-full bg-blue-600 px-8 py-3 text-white font-semibold shadow-lg hover:bg-blue-700 transition"
-          >
-            Start a New Trip
-          </Link>
-          <Link
-            href="/explore"
-            className="rounded-full border border-slate-300 bg-white px-8 py-3 font-semibold hover:bg-slate-50 transition"
-          >
-            Explore Parks & Attractions
-          </Link>
-        </div>
-      </section>
+  return <div className="space-y-20 pb-6">
+    <section className="grid items-center gap-12 py-8 lg:grid-cols-[1.05fr_.95fr] lg:py-16">
+      <div><p className="text-xs font-bold uppercase tracking-[0.24em] text-gold">A calmer way to plan the magic</p><h1 className="mt-4 max-w-3xl text-5xl font-semibold leading-[1.02] tracking-tight text-primary sm:text-6xl">Your family’s Disney days, thoughtfully arranged.</h1><p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted">Build a flexible day-by-day plan for parks, dining, shows, and the moments your family cares about—without turning vacation planning into another full-time job.</p><div className="mt-8 flex flex-wrap gap-3"><Link href="/trips/new" className={buttonStyles({ size: "lg" })}>Plan a new trip</Link><Link href="/explore" className={buttonStyles({ variant: "secondary", size: "lg" })}>Explore the parks</Link></div></div>
+      <ProductPreview />
+    </section>
 
-      {/* Feature cards */}
-      <section className="grid md:grid-cols-3 gap-6">
-        <FeatureCard
-          title="📅 Smart Day Planning"
-          description="Assign parks to each day, then drag attractions, shows, and dining into a timeline that respects opening hours and realistic walking times."
-        />
-        <FeatureCard
-          title="🍽️ Dining & Experiences"
-          description="Browse restaurants and shows with live data. Track reservations, budgets, and preferred time slots for the whole family."
-        />
-        <FeatureCard
-          title="💰 Budget & Reality Check"
-          description="Set a total budget and see estimated costs for tickets, meals, Lightning Lane, souvenirs, and more as you build your plan."
-        />
-      </section>
+    <section><div className="max-w-2xl"><p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">Made for real family days</p><h2 className="mt-2 text-3xl font-semibold text-primary sm:text-4xl">Structure where it helps. Flexibility where it matters.</h2></div><div className="mt-8 grid gap-5 md:grid-cols-3"><Feature icon={<CalendarIcon />} title="A day at a time" description="Focus on one park day, then move easily across your vacation with a clear day rail." /><Feature icon={<ClockIcon />} title="Plans that breathe" description="Use exact reservation times, broad morning or evening windows, or leave an idea flexible." /><Feature icon={<WalletIcon />} title="A gentle budget check" description="See your estimated itinerary spend against the family budget as plans take shape." /></div></section>
 
-      {/* Status note */}
-      <section className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center">
-        <p className="text-amber-900 font-medium">
-          WDW Planner now supports private trips, day-by-day planning, budgets, live park context, and AI-assisted suggestions.
-        </p>
-        <p className="mt-2 text-sm text-amber-800">
-          Powered by ThemeParks.wiki for live park data. Always double-check the official
-          My Disney Experience app for the latest hours, wait times, and reservations.
-        </p>
-      </section>
-    </div>
-  );
+    <section className="rounded-card border border-gold/25 bg-primary px-6 py-9 text-center text-white shadow-lift sm:px-10"><p className="font-display text-2xl font-semibold">Ready when your family is.</p><p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-sand">Start with dates. We’ll make a page for every day, and you can fill in the story from there.</p><Link href="/trips/new" className={buttonStyles({ variant: "secondary", size: "lg", className: "mt-6 border-sand/30 bg-surface" })}>Create your trip</Link></section>
+  </div>;
 }
 
-function FeatureCard({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="rounded-2xl border bg-white p-6 shadow-sm hover:shadow-md transition">
-      <h3 className="text-lg font-semibold mb-2">{title}</h3>
-      <p className="text-slate-600 text-sm leading-relaxed">{description}</p>
-    </div>
-  );
-}
+function ProductPreview() { return <div className="relative mx-auto w-full max-w-lg"><div className="absolute -inset-5 -rotate-2 rounded-card border border-gold/20 bg-sand/30" /><Card className="relative overflow-hidden p-5 sm:p-6"><div className="flex items-center justify-between"><div><p className="text-[10px] font-bold uppercase tracking-widest text-gold">The Rivera family</p><h2 className="mt-1 text-2xl font-semibold text-primary">Magic Kingdom day</h2></div><span className="rounded-full bg-park-mk/10 px-3 py-1 text-xs font-bold text-park-mk">Day 2</span></div><div className="mt-6 flex gap-2 overflow-hidden">{["Mon 8", "Tue 9", "Wed 10"].map((day, i) => <span key={day} className={`shrink-0 rounded-control border px-3 py-2 text-xs font-semibold ${i === 1 ? "border-gold bg-primary text-white" : "border-border bg-parchment text-muted"}`}>{day}</span>)}</div><div className="relative mt-6 space-y-3 border-l border-border pl-6"><PreviewItem time="9:15 AM" title="Jungle Cruise" tone="bg-park-mk" /><PreviewItem time="Morning" title="Fantasyland favorites" tone="bg-park-epcot" /><PreviewItem time="6:40 PM" title="Dinner reservation" tone="bg-park-hs" /></div><div className="mt-6 h-2 overflow-hidden rounded-full bg-border"><div className="h-full w-3/5 rounded-full bg-success" /></div><p className="mt-2 text-xs text-muted">$2,980 planned of $5,000</p></Card></div>; }
+function PreviewItem({ time, title, tone }: { time: string; title: string; tone: string }) { return <div className="relative rounded-control border border-border bg-parchment/55 p-3"><span className={`absolute -left-[1.86rem] top-4 size-3 rounded-full border-2 border-surface ${tone}`} /><p className="text-[10px] font-bold uppercase tracking-wider text-muted">{time}</p><p className="mt-1 text-sm font-semibold text-primary">{title}</p></div>; }
+function Feature({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) { return <Card className="p-6"><span className="grid size-11 place-items-center rounded-control bg-sand/30 text-primary">{icon}</span><h3 className="mt-5 font-display text-xl font-semibold text-primary">{title}</h3><p className="mt-2 text-sm leading-relaxed text-muted">{description}</p></Card>; }
+const iconClass = "size-5 fill-none stroke-current stroke-[1.8]";
+function CalendarIcon() { return <svg viewBox="0 0 24 24" className={iconClass}><path d="M6 3v3m12-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z" /></svg>; }
+function ClockIcon() { return <svg viewBox="0 0 24 24" className={iconClass}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>; }
+function WalletIcon() { return <svg viewBox="0 0 24 24" className={iconClass}><path d="M4 7h15a1 1 0 0 1 1 1v11H4V7Zm0 0V5h13v2m0 5h3" /></svg>; }

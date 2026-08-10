@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 
+import { buttonStyles } from "@/components/ui/button";
+import { controlStyles } from "@/components/ui/field";
 import { createTripSchema } from "@/lib/trip-validation";
 
 type FieldName = "name" | "startDate" | "endDate" | "budget" | "notes";
@@ -15,12 +17,11 @@ interface CreateTripResponse {
   fieldErrors?: FieldErrors;
 }
 
-const inputClasses =
-  "mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-100";
+const inputClasses = `${controlStyles} mt-2 py-3`;
 
 function FieldError({ errors }: { errors?: string[] }) {
   if (!errors?.length) return null;
-  return <p className="mt-2 text-sm text-red-600">{errors[0]}</p>;
+  return <p className="mt-2 text-sm text-danger">{errors[0]}</p>;
 }
 
 export function TripForm() {
@@ -77,13 +78,13 @@ export function TripForm() {
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-6">
       {formError && (
-        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        <div role="alert" className="rounded-control border border-danger/20 bg-danger/5 p-4 text-sm text-danger">
           {formError}
         </div>
       )}
 
       <div>
-        <label htmlFor="name" className="text-sm font-semibold text-slate-800">
+        <label htmlFor="name" className="text-sm font-semibold text-ink">
           Trip name <span className="text-red-500">*</span>
         </label>
         <input
@@ -102,14 +103,14 @@ export function TripForm() {
 
       <div className="grid gap-5 sm:grid-cols-2">
         <div>
-          <label htmlFor="startDate" className="text-sm font-semibold text-slate-800">
+          <label htmlFor="startDate" className="text-sm font-semibold text-ink">
             Start date <span className="text-red-500">*</span>
           </label>
           <input id="startDate" name="startDate" type="date" required className={inputClasses} aria-invalid={Boolean(errors.startDate)} />
           <FieldError errors={errors.startDate} />
         </div>
         <div>
-          <label htmlFor="endDate" className="text-sm font-semibold text-slate-800">
+          <label htmlFor="endDate" className="text-sm font-semibold text-ink">
             End date <span className="text-red-500">*</span>
           </label>
           <input id="endDate" name="endDate" type="date" required className={inputClasses} aria-invalid={Boolean(errors.endDate)} />
@@ -118,7 +119,7 @@ export function TripForm() {
       </div>
 
       <div>
-        <label htmlFor="budget" className="text-sm font-semibold text-slate-800">
+        <label htmlFor="budget" className="text-sm font-semibold text-ink">
           Total budget <span className="font-normal text-slate-500">(optional)</span>
         </label>
         <div className="relative mt-2">
@@ -136,12 +137,12 @@ export function TripForm() {
             aria-invalid={Boolean(errors.budget)}
           />
         </div>
-        <p className="mt-2 text-xs text-slate-500">A planning target—you can refine the details later.</p>
+        <p className="mt-2 text-xs text-muted">A planning target—you can refine the details later.</p>
         <FieldError errors={errors.budget} />
       </div>
 
       <div>
-        <label htmlFor="notes" className="text-sm font-semibold text-slate-800">
+        <label htmlFor="notes" className="text-sm font-semibold text-ink">
           Family notes <span className="font-normal text-slate-500">(optional)</span>
         </label>
         <textarea
@@ -157,13 +158,13 @@ export function TripForm() {
       </div>
 
       <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-        <Link href="/" className="rounded-full px-6 py-3 text-center font-semibold text-slate-600 transition hover:bg-slate-100">
+        <Link href="/trips" className={buttonStyles({ variant: "ghost", size: "lg" })}>
           Cancel
         </Link>
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-full bg-blue-600 px-8 py-3 font-semibold text-white shadow-lg transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
+          className={buttonStyles({ size: "lg" })}
         >
           {isSubmitting ? "Creating your trip..." : "Create My Trip"}
         </button>

@@ -10,7 +10,7 @@ import { assignHotel, deleteTrip, updatePartyProfile, updateTrip, type MutationR
 type Hotel = { id: string; name: string };
 type TripValues = { id: string; name: string; startDate: string; endDate: string; budget: string; notes: string; hotelId: string | null; partyProfile: PartyProfile };
 
-const fieldClass = "mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100";
+const fieldClass = "mt-1.5 w-full rounded-control border border-border bg-surface px-3.5 py-2.5 text-sm outline-none transition focus:border-gold focus:ring-4 focus:ring-gold/15";
 
 export function TripSettings({ trip, hotels }: { trip: TripValues; hotels: Hotel[] }) {
   const router = useRouter();
@@ -40,7 +40,7 @@ export function TripSettings({ trip, hotels }: { trip: TripValues; hotels: Hotel
     run(() => updatePartyProfile({ tripId: trip.id, partySize: form.get("partySize"), ages: form.get("ages"), dietaryNotes: form.get("dietaryNotes"), accessibilityNotes: form.get("accessibilityNotes"), mustDos: form.get("mustDos"), avoidList: form.get("avoidList") }));
   }
 
-  return <section className="rounded-2xl border bg-white shadow-sm">
+  return <section className="rounded-card border border-border bg-surface shadow-card">
     <button type="button" onClick={() => setOpen((value) => !value)} className="flex w-full items-center justify-between p-5 text-left font-semibold"><span>Trip, hotel & party settings</span><span className="text-slate-400">{open ? "−" : "+"}</span></button>
     {open && <div className="space-y-8 border-t p-5 sm:p-6">
       {(message || error) && <p role="status" className={`rounded-xl p-3 text-sm ${error ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-800"}`}>{error ?? message}</p>}
@@ -51,7 +51,7 @@ export function TripSettings({ trip, hotels }: { trip: TripValues; hotels: Hotel
         <p className="text-xs text-slate-500">Shortening a trip removes only empty days. Remove itinerary items and notes, then set excluded days to “Rest day” first.</p>
         <label className="block text-sm font-semibold">Budget ($)<input name="budget" type="number" min="0" step="0.01" defaultValue={trip.budget} className={fieldClass} /></label>
         <label className="block text-sm font-semibold">Trip notes<textarea name="notes" rows={3} maxLength={2000} defaultValue={trip.notes} className={fieldClass} /></label>
-        <button disabled={pending} className="rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Save trip details</button>
+        <button disabled={pending} className="rounded-control bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Save trip details</button>
       </form>
 
       <div className="border-t pt-6"><h2 className="text-lg font-bold">WDW hotel</h2><label className="mt-3 block text-sm font-semibold">Resort hotel<select value={trip.hotelId ?? ""} disabled={pending} onChange={(event) => run(() => assignHotel({ tripId: trip.id, hotelId: event.target.value || null }))} className={fieldClass}><option value="">No hotel selected</option>{hotels.map((hotel) => <option key={hotel.id} value={hotel.id}>{hotel.name}</option>)}</select></label>{hotels.length === 0 && <p className="mt-2 text-xs text-amber-700">No cached hotels yet. Sync the park directory below.</p>}</div>
@@ -64,7 +64,7 @@ export function TripSettings({ trip, hotels }: { trip: TripValues; hotels: Hotel
         <label className="block text-sm font-semibold">Accessibility notes<textarea name="accessibilityNotes" rows={2} maxLength={1000} defaultValue={trip.partyProfile.accessibilityNotes} className={fieldClass} /></label>
         <label className="block text-sm font-semibold">Must-dos<textarea name="mustDos" rows={2} maxLength={1000} defaultValue={trip.partyProfile.mustDos} placeholder="Guardians, fireworks, character breakfast…" className={fieldClass} /></label>
         <label className="block text-sm font-semibold">Avoid list<textarea name="avoidList" rows={2} maxLength={1000} defaultValue={trip.partyProfile.avoidList} placeholder="Big drops, late nights…" className={fieldClass} /></label>
-        <button disabled={pending} className="rounded-full bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Save party profile</button>
+        <button disabled={pending} className="rounded-control bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Save party profile</button>
       </form>
 
       <div className="border-t border-red-100 pt-6"><h2 className="font-bold text-red-800">Delete trip</h2><p className="mt-1 text-sm text-slate-600">This permanently removes every planning day and item.</p><button type="button" disabled={pending} onClick={() => { if (window.confirm(`Permanently delete “${trip.name}”? This cannot be undone.`)) startTransition(() => deleteTrip({ tripId: trip.id })); }} className="mt-3 rounded-full border border-red-300 px-5 py-2 text-sm font-semibold text-red-700 hover:bg-red-50">Delete this trip</button></div>
