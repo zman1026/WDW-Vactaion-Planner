@@ -2,11 +2,14 @@ import type { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 import { getWDWHierarchy, WDW_DESTINATION_ID } from "@/lib/themeparks";
+import { WDW_HOTELS } from "@/lib/wdw-hotels";
 
 const BATCH_SIZE = 100;
 
 export async function syncParkEntities() {
-  const entities = await getWDWHierarchy();
+  const hierarchy = await getWDWHierarchy();
+  const upstreamHasHotels = hierarchy.some((entity) => entity.entityType === "HOTEL");
+  const entities = upstreamHasHotels ? hierarchy : [...hierarchy, ...WDW_HOTELS];
   const syncedAt = new Date();
 
   for (let offset = 0; offset < entities.length; offset += BATCH_SIZE) {
@@ -35,5 +38,5 @@ export async function syncParkEntities() {
     );
   }
 
-  return { count: entities.length, syncedAt };
+  return { count: entities.length, hotelCount: entities.filter((entity) => entity.entityType === "HOTEL").length, syncedAt };
 }
