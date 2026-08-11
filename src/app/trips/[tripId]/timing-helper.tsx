@@ -32,10 +32,10 @@ export function TimingHelper({ parkId, items }: { parkId: string | null; items: 
   const plannedLive = live?.filter((entry) => items.some((item) => item.entityId === entry.id) && entry.showtimes?.length);
 
   return <div className="space-y-2">
-    {conflicts.map((message) => <p key={message} className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">⚠ {message}</p>)}
-    {parkId && <button type="button" onClick={load} disabled={loading} className="text-xs font-semibold text-emerald-700 hover:underline disabled:opacity-50">{loading ? "Checking live timing…" : "Check park hours & showtimes"}</button>}
-    {error && <p className="text-xs text-red-700">{error}</p>}
-    {live && <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-xs text-emerald-950">
+    {conflicts.map((message) => <p key={message} className="rounded-lg border border-warning/25 bg-warning/5 px-3 py-2 text-xs font-semibold text-warning">Timing note: {message}</p>)}
+    {parkId && <button type="button" onClick={load} disabled={loading} className="day-accent-text text-xs font-semibold hover:underline disabled:opacity-50">{loading ? "Checking live timing…" : "Check park hours & showtimes"}</button>}
+    {error && <p className="text-xs text-danger">{error}</p>}
+    {live && <div className="day-accent-border rounded-lg border bg-white/55 p-3 text-xs text-primary">
       {parkLive?.operatingHours?.length ? <p><strong>Park hours:</strong> {parkLive.operatingHours.map((hours) => `${clock(hours.startTime)}–${clock(hours.endTime)}`).join(", ")}</p> : <p>Park hours were not included in the current live response.</p>}
       {plannedLive?.map((entry) => <p key={entry.id} className="mt-1"><strong>{entry.name}:</strong> {entry.showtimes?.map((show) => clock(show.startTime)).filter(Boolean).join(", ")}</p>)}
     </div>}

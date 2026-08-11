@@ -48,3 +48,72 @@ h1, h2, .font-display { font-family: var(--font-display); }
   body { background: white !important; }
   .no-print { display: none !important; }
 }
+
+/* Day themes are intentionally scoped to the itinerary canvas. The app shell
+   remains calm parchment and navy while each selected day carries its identity. */
+.day-theme {
+  --day-accent: 119 109 96;
+  --day-accent-deep: 82 74 64;
+  --day-wash: 248 245 239;
+  --day-glow: 232 213 163;
+  color: rgb(var(--color-ink));
+  background-color: rgb(var(--day-wash));
+  transition: background-color 320ms ease, border-color 320ms ease, box-shadow 320ms ease;
+}
+
+.day-theme[data-theme="mk"] { --day-accent: 180 139 50; --day-accent-deep: 116 78 26; --day-wash: 255 249 235; --day-glow: 225 191 111; }
+.day-theme[data-theme="epcot"] { --day-accent: 28 125 126; --day-accent-deep: 18 82 94; --day-wash: 239 250 248; --day-glow: 106 199 190; }
+.day-theme[data-theme="hs"] { --day-accent: 157 74 95; --day-accent-deep: 111 45 70; --day-wash: 253 242 245; --day-glow: 224 145 163; }
+.day-theme[data-theme="ak"] { --day-accent: 73 118 76; --day-accent-deep: 47 80 50; --day-wash: 242 248 238; --day-glow: 151 176 115; }
+.day-theme[data-theme="rest"] { --day-accent: 119 109 96; --day-accent-deep: 82 74 64; --day-wash: 248 245 239; --day-glow: 208 191 167; }
+.day-theme[data-theme="hotel-victorian"] { --day-accent: 153 112 46; --day-accent-deep: 101 71 26; --day-wash: 255 249 238; --day-glow: 222 189 125; }
+.day-theme[data-theme="hotel-modern"] { --day-accent: 62 113 145; --day-accent-deep: 38 75 101; --day-wash: 240 248 252; --day-glow: 132 185 210; }
+.day-theme[data-theme="hotel-tropical"] { --day-accent: 32 126 117; --day-accent-deep: 18 82 76; --day-wash: 239 251 247; --day-glow: 114 197 177; }
+.day-theme[data-theme="hotel-wilderness"] { --day-accent: 86 105 68; --day-accent-deep: 55 71 43; --day-wash: 245 247 237; --day-glow: 163 174 121; }
+.day-theme[data-theme="hotel-coastal"] { --day-accent: 51 116 139; --day-accent-deep: 30 77 96; --day-wash: 240 249 251; --day-glow: 127 187 199; }
+.day-theme[data-theme="hotel-savanna"] { --day-accent: 102 105 57; --day-accent-deep: 67 70 37; --day-wash: 248 247 235; --day-glow: 180 172 111; }
+
+.day-theme__hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-color: rgb(var(--day-accent) / 0.22);
+  background:
+    radial-gradient(circle at 88% 8%, rgb(var(--day-glow) / 0.24), transparent 17rem),
+    linear-gradient(135deg, rgb(255 255 255 / 0.76), rgb(var(--day-wash) / 0.72));
+}
+.day-theme__hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.28;
+  pointer-events: none;
+  background-image: radial-gradient(circle, rgb(var(--day-accent) / 0.24) 1px, transparent 1.5px);
+  background-size: 24px 24px;
+  mask-image: linear-gradient(to left, black, transparent 70%);
+}
+.day-theme[data-pattern="geometry"] .day-theme__hero::after { background-image: linear-gradient(30deg, transparent 48%, rgb(var(--day-accent) / .18) 49%, rgb(var(--day-accent) / .18) 51%, transparent 52%); background-size: 30px 52px; }
+.day-theme[data-pattern="stage"] .day-theme__hero::after { background-image: repeating-linear-gradient(112deg, transparent 0 28px, rgb(var(--day-accent) / .1) 29px 31px); }
+.day-theme[data-pattern="organic"] .day-theme__hero::after { background-image: radial-gradient(ellipse at center, transparent 52%, rgb(var(--day-accent) / .15) 54%, transparent 57%); background-size: 42px 29px; }
+.day-theme[data-pattern="breeze"] .day-theme__hero::after { background-image: repeating-radial-gradient(ellipse at 100% 0, transparent 0 22px, rgb(var(--day-accent) / .1) 23px 25px); background-size: 92px 52px; }
+
+.day-accent-text { color: rgb(var(--day-accent-deep)); }
+.day-accent-bg { background-color: rgb(var(--day-accent)); }
+.day-accent-border { border-color: rgb(var(--day-accent) / 0.35); }
+.day-primary { background-color: rgb(var(--day-accent-deep)) !important; color: white !important; }
+.day-primary:hover { filter: brightness(1.08); }
+.day-item { border-color: rgb(var(--day-accent) / .2); background: rgb(255 255 255 / .72); }
+.day-item:hover { border-color: rgb(var(--day-accent) / .48); background: rgb(255 255 255 / .94); }
+.day-item--dining { border-left: 4px solid rgb(var(--day-accent)); box-shadow: 0 10px 24px rgb(var(--day-accent) / .08); }
+.day-item--moment { background: linear-gradient(110deg, rgb(var(--day-accent) / .1), rgb(255 255 255 / .82)); }
+.day-item--soft { border-style: dashed; background: rgb(255 255 255 / .48); }
+.day-canvas-enter { animation: day-canvas-in 300ms ease both; }
+@keyframes day-canvas-in { from { opacity: .35; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .day-canvas-enter { animation: none; } }
+
+.share-day { --day-accent: 119 109 96; border-top: 5px solid rgb(var(--day-accent)); }
+@media print {
+  .share-day { break-inside: avoid; box-shadow: none !important; background: white !important; }
+  .day-theme__hero { background: white !important; }
+}

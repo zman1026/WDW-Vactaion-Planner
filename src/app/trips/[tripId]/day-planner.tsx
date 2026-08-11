@@ -15,7 +15,7 @@ type Park = { id: string; name: string };
 type PlanItem = { id: string; entityId: string; entityType: string; title: string; timingType: string; timeOfDay: string | null; startTime: string | null; endTime: string | null; estimatedCostCents: number | null; notes: string | null };
 type SearchEntity = { id: string; name: string; entityType: string };
 
-export function DayPlanner({ tripId, dayPlanId, parkId, parks, items, days }: { tripId: string; dayPlanId: string; parkId: string | null; parks: Park[]; items: PlanItem[]; days: Array<{ id: string; label: string }> }) {
+export function DayPlanner({ tripId, dayPlanId, parkId, parks, items, days, emptyTitle, emptyDescription }: { tripId: string; dayPlanId: string; parkId: string | null; parks: Park[]; items: PlanItem[]; days: Array<{ id: string; label: string }>; emptyTitle: string; emptyDescription: string }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [editor, setEditor] = useState<PlanItem | "new" | null>(null);
@@ -37,18 +37,20 @@ export function DayPlanner({ tripId, dayPlanId, parkId, parks, items, days }: { 
       </Select>
     </Field>
 
-    {items.length === 0 ? <EmptyState title="This day is yours to shape" description="Add an attraction, dining reservation, show, or experience. Choose an exact time, a part of day, or leave it flexible." /> : <div className="space-y-7">
+    {items.length === 0 ? <EmptyState title={emptyTitle} description={emptyDescription} className="day-accent-border bg-white/55" icon={<DayPathIcon />} /> : <div className="space-y-7">
       {timelineBands(items).map((band) => band.entries.length > 0 && <section key={band.label}>
-        <div className="mb-3 flex items-center gap-3"><span className={`size-2.5 rounded-full ${band.dot}`} /><h3 className="font-display text-xl font-semibold text-primary">{band.label}</h3><span className="text-xs text-muted">{band.range}</span></div>
-        <ol className="relative ml-1 border-l border-border pl-5 sm:pl-7">{band.entries.map(({ item, index }) => <li key={item.id} className="relative pb-3 last:pb-0">
-          <span className={`absolute -left-[1.62rem] top-5 size-3 rounded-full border-2 border-surface ${band.dot} sm:-left-[2.12rem]`} />
-          <article className="rounded-control border border-border bg-parchment/45 p-4 transition hover:border-gold/45 hover:bg-surface hover:shadow-card">
+        <div className="mb-3 flex items-center gap-3"><span className="day-accent-bg size-2.5 rounded-full" /><h3 className="font-display text-xl font-semibold text-primary">{band.label}</h3><span className="text-xs text-muted">{band.range}</span></div>
+        <ol className="relative ml-1 border-l border-[rgb(var(--day-accent)/.24)] pl-5 sm:pl-7">{band.entries.map(({ item, index }) => {
+          const presentation = itemPresentation(item);
+          return <li key={item.id} className="relative pb-3 last:pb-0">
+          <span className="day-accent-bg absolute -left-[1.62rem] top-5 size-3 rounded-full border-2 border-surface sm:-left-[2.12rem]" />
+          <article className={`day-item rounded-control border p-4 transition hover:shadow-card ${presentation.className}`}>
             <div className="flex flex-col items-start justify-between gap-3 sm:flex-row">
-              <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold text-primary">{item.title}</p><Badge>{item.entityType}</Badge></div><p className="mt-1 text-xs font-semibold text-muted">{timingDescription(item)}</p>{item.estimatedCostCents !== null && <p className="mt-2 text-xs text-muted">Estimated ${(item.estimatedCostCents / 100).toFixed(2)}</p>}{item.notes && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted">{item.notes}</p>}</div>
+              <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold text-primary">{item.title}</p><Badge className="border-[rgb(var(--day-accent)/.2)] bg-white/55 text-[rgb(var(--day-accent-deep))]">{presentation.label}</Badge>{isPaidExtra(item) && <Badge className="border-gold/30 bg-gold/10 text-gold">Paid extra</Badge>}</div><p className={`mt-1 text-xs font-semibold ${presentation.emphasizeTime ? "day-accent-text text-sm" : "text-muted"}`}>{timingDescription(item)}</p>{item.estimatedCostCents !== null && <p className="mt-2 text-xs text-muted">Estimated ${(item.estimatedCostCents / 100).toFixed(2)}</p>}{item.notes && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted">{item.notes}</p>}</div>
               <div className="flex shrink-0 flex-wrap gap-1"><SmallButton label="Move up" disabled={isPending || index === 0} onClick={() => run(() => reorderDayPlanItem({ itemId: item.id, direction: "up" }))}>↑</SmallButton><SmallButton label="Move down" disabled={isPending || index === items.length - 1} onClick={() => run(() => reorderDayPlanItem({ itemId: item.id, direction: "down" }))}>↓</SmallButton><SmallButton label={`Edit ${item.title}`} disabled={isPending} onClick={() => setEditor(item)}>Edit</SmallButton><SmallButton label={`Remove ${item.title}`} disabled={isPending} onClick={() => { if (window.confirm(`Remove ${item.title} from this day?`)) run(() => removeDayPlanItem({ itemId: item.id })); }}>×</SmallButton></div>
             </div>
           </article>
-        </li>)}</ol>
+        </li>;})}</ol>
       </section>)}
     </div>}
 
@@ -61,7 +63,7 @@ export function DayPlanner({ tripId, dayPlanId, parkId, parks, items, days }: { 
     </div>
 
     <TimingHelper parkId={parkId} items={items} />
-    <Button type="button" size="lg" onClick={() => setEditor("new")} className="w-full">Add to this day</Button>
+    <Button type="button" size="lg" onClick={() => setEditor("new")} className="day-primary sticky bottom-3 z-20 w-full shadow-lift sm:static">Add to this day</Button>
     <Modal open={Boolean(editor)} title={editor === "new" ? "Add to this day" : "Edit plan item"} onClose={() => setEditor(null)}>{editor && <ItemEditor dayPlanId={dayPlanId} parkId={parkId} item={editor === "new" ? undefined : editor} isPending={isPending} onSave={(input) => run(() => saveDayPlanItem(input), () => setEditor(null))} />}</Modal>
     <AiSuggestions tripId={tripId} dayPlanId={dayPlanId} hasPark={Boolean(parkId)} disabled={isPending} onApply={(suggestions) => run(async () => { for (const item of suggestions) await saveDayPlanItem({ dayPlanId, entityId: item.entityId, entityType: item.entityType, title: item.title, timingType: "EXACT", timeOfDay: "", startTime: item.startTime, endTime: item.endTime, estimatedCost: (item.estimatedCostCents / 100).toFixed(2), notes: item.notes }); })} />
   </div>;
@@ -73,6 +75,22 @@ function timingDescription(item: PlanItem) {
   if (item.timingType === "EXACT" && item.startTime) return `Fixed · ${item.startTime}${item.endTime ? `–${item.endTime}` : ""}`;
   if (item.timingType === "TIME_OF_DAY" && item.timeOfDay) return item.timeOfDay.charAt(0) + item.timeOfDay.slice(1).toLowerCase();
   return "Flexible / anytime";
+}
+
+function itemPresentation(item: PlanItem) {
+  if (item.entityType === "RESTAURANT") return { label: "Dining", className: "day-item--dining", emphasizeTime: true };
+  if (item.entityType === "SHOW") return { label: "Big moment", className: "day-item--moment", emphasizeTime: true };
+  if (item.entityType === "EXPERIENCE" && /break|rest|travel|transfer|pool|nap/i.test(`${item.title} ${item.notes ?? ""}`)) return { label: "Pause", className: "day-item--soft", emphasizeTime: false };
+  if (item.entityType === "ATTRACTION") return { label: "Attraction", className: "", emphasizeTime: false };
+  return { label: "Experience", className: "", emphasizeTime: false };
+}
+
+function isPaidExtra(item: PlanItem) {
+  return /lightning lane|paid extra|individual lane/i.test(item.notes ?? "");
+}
+
+function DayPathIcon() {
+  return <svg viewBox="0 0 24 24" className="size-7 fill-none stroke-current stroke-[1.6]" aria-hidden="true"><path d="M5 19c3-1 3-5 6-6s4 2 7 0c2-1 2-4 0-6" /><circle cx="5" cy="19" r="2" /><circle cx="18" cy="6" r="2" /></svg>;
 }
 
 function timelineBands(items: PlanItem[]) {

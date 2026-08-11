@@ -65,6 +65,7 @@ prisma/
 ## Product design system
 
 - Warm family-travel journal palette with navy, antique gold, parchment, and park-specific accents
+- Centralized day themes in `src/lib/day-themes.ts`, applied with scoped `data-theme` attributes and CSS variables. Rest days use a mapped hotel personality when recognized and the polished `rest` fallback otherwise.
 - Shared cards, controls, buttons, badges, empty states, budget meter, and accessible modal primitives
 - Focused trip workspace with a scrollable day rail, timeline bands, and mobile sheet editing
 
