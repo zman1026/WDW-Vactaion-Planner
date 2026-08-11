@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { eachDayOfInterval, format } from "date-fns";
 
 import { requireCurrentUser } from "@/lib/current-user";
-import { dayPlanItemSchema, itemMutationSchema, parkAssignmentSchema, type DayPlanItemInput } from "@/lib/day-plan-validation";
+import { assignMustDoSchema, dayPlanItemSchema, itemMutationSchema, mustDoSchema, parkAssignmentSchema, secondaryParkAssignmentSchema, starterTemplateSchema, type DayPlanItemInput } from "@/lib/day-plan-validation";
+import { getDescendantEntityIds } from "@/lib/entity-hierarchy";
 import { prisma } from "@/lib/prisma";
 import { budgetToCents, calendarDateToUtc } from "@/lib/trip-validation";
 import { clearDaySchema, copyDaySchema, hotelAssignmentSchema, partyProfileSchema, tripIdSchema, updateTripSchema } from "@/lib/trip-management-validation";
@@ -14,19 +15,19 @@ export type MutationResult = { success: true; message?: string } | { success: fa
 
 async function ownedDayPlan(dayPlanId: string) {
   const user = await requireCurrentUser();
-  return prisma.dayPlan.findFirst({ where: { id: dayPlanId, trip: { userId: user.id } }, select: { id: true, tripId: true } });
+  return prisma.dayPlan.findFirst({ where: { id: dayPlanId, trip: { userId: user.id } }, select: { id: true, tripId: true, parkId: true } });
 }
 
 export async function updateTrip(input: unknown): Promise<MutationResult> {
   const parsed = updateTripSchema.safeParse(input);
   if (!parsed.success) return { success: false, message: parsed.error.issues[0]?.message ?? "Check the trip details." };
   const user = await requireCurrentUser();
-  const trip = await prisma.trip.findFirst({ where: { id: parsed.data.tripId, userId: user.id }, include: { dayPlans: { select: { id: true, date: true, parkId: true, notes: true, _count: { select: { items: true } } } } } });
+  const trip = await prisma.trip.findFirst({ where: { id: parsed.data.tripId, userId: user.id }, include: { dayPlans: { select: { id: true, date: true, parkId: true, secondaryParkId: true, notes: true, _count: { select: { items: true } } } } } });
   if (!trip) return { success: false, message: "Trip not found." };
   const startDate = calendarDateToUtc(parsed.data.startDate);
   const endDate = calendarDateToUtc(parsed.data.endDate);
   const outside = trip.dayPlans.filter((day) => day.date < startDate || day.date > endDate);
-  const plannedOutside = outside.filter((day) => day.parkId || day.notes || day._count.items > 0);
+  const plannedOutside = outside.filter((day) => day.parkId || day.secondaryParkId || day.notes || day._count.items > 0);
   if (plannedOutside.length) return { success: false, message: `The new dates exclude planned ${plannedOutside.length === 1 ? "day" : "days"}: ${plannedOutside.map((day) => format(day.date, "MMM d")).join(", ")}. Remove their items, notes, and park assignments before shortening the trip.` };
   const desiredDates = eachDayOfInterval({ start: startDate, end: endDate });
   const existingDates = new Set(trip.dayPlans.map((day) => day.date.toISOString().slice(0, 10)));
@@ -92,7 +93,7 @@ export async function copyDay(input: unknown) {
   const target = await prisma.dayPlan.findFirst({ where: { id: parsed.targetDayPlanId, tripId: source.tripId, trip: { userId: user.id } }, select: { id: true } });
   if (!target) throw new Error("Target day not found.");
   const last = await prisma.dayPlanItem.aggregate({ where: { dayPlanId: target.id }, _max: { sortOrder: true } });
-  await prisma.dayPlanItem.createMany({ data: source.items.map((item, index) => ({ dayPlanId: target.id, entityId: item.entityId, entityType: item.entityType, title: item.title, timingType: item.timingType, timeOfDay: item.timeOfDay, startTime: item.startTime, endTime: item.endTime, estimatedCostCents: item.estimatedCostCents, notes: item.notes, sortOrder: (last._max.sortOrder ?? -1) + index + 1 })) });
+  await prisma.dayPlanItem.createMany({ data: source.items.map((item, index) => ({ dayPlanId: target.id, entityId: item.entityId, entityType: item.entityType, title: item.title, timingType: item.timingType, timeOfDay: item.timeOfDay, startTime: item.startTime, endTime: item.endTime, estimatedCostCents: item.estimatedCostCents, notes: item.notes, bookingStatus: item.bookingStatus, confirmationNumber: item.confirmationNumber, partySizeOverride: item.partySizeOverride, backupNote: item.backupNote, paidExtraType: item.paidExtraType, sortOrder: (last._max.sortOrder ?? -1) + index + 1 })) });
   revalidatePath(`/trips/${source.tripId}`);
 }
 
@@ -104,7 +105,20 @@ export async function assignPark(input: { dayPlanId: string; parkId: string | nu
     const park = await prisma.parkEntity.findFirst({ where: { id: parsed.parkId, entityType: "PARK" }, select: { id: true } });
     if (!park) throw new Error("Choose a valid park.");
   }
-  await prisma.dayPlan.update({ where: { id: dayPlan.id }, data: { parkId: parsed.parkId || null } });
+  await prisma.dayPlan.update({ where: { id: dayPlan.id }, data: { parkId: parsed.parkId || null, ...(!parsed.parkId ? { secondaryParkId: null } : {}) } });
+  revalidatePath(`/trips/${dayPlan.tripId}`);
+}
+
+export async function assignSecondaryPark(input: { dayPlanId: string; secondaryParkId: string | null }) {
+  const parsed = secondaryParkAssignmentSchema.parse(input);
+  const dayPlan = await ownedDayPlan(parsed.dayPlanId);
+  if (!dayPlan) throw new Error("Planning day not found.");
+  if (parsed.secondaryParkId && parsed.secondaryParkId === dayPlan.parkId) throw new Error("Choose a different second park.");
+  if (parsed.secondaryParkId) {
+    const park = await prisma.parkEntity.findFirst({ where: { id: parsed.secondaryParkId, entityType: "PARK" }, select: { id: true } });
+    if (!park) throw new Error("Choose a valid second park.");
+  }
+  await prisma.dayPlan.update({ where: { id: dayPlan.id }, data: { secondaryParkId: parsed.secondaryParkId || null } });
   revalidatePath(`/trips/${dayPlan.tripId}`);
 }
 
@@ -118,7 +132,7 @@ export async function saveDayPlanItem(input: DayPlanItemInput) {
     : parsed.timingType === "TIME_OF_DAY"
       ? { timingType: parsed.timingType, timeOfDay: parsed.timeOfDay, startTime: null, endTime: null }
       : { timingType: parsed.timingType, timeOfDay: null, startTime: null, endTime: null };
-  const data = { entityId: parsed.entityId, entityType: parsed.entityType, title: parsed.title, ...timing, estimatedCostCents, notes: parsed.notes };
+  const data = { entityId: parsed.entityId, entityType: parsed.entityType, title: parsed.title, ...timing, estimatedCostCents, notes: parsed.notes, bookingStatus: parsed.bookingStatus, confirmationNumber: parsed.confirmationNumber, partySizeOverride: parsed.partySizeOverride, backupNote: parsed.backupNote, paidExtraType: parsed.paidExtraType };
 
   if (parsed.id) {
     const existing = await prisma.dayPlanItem.findFirst({ where: { id: parsed.id, dayPlanId: dayPlan.id }, select: { id: true } });
@@ -129,6 +143,66 @@ export async function saveDayPlanItem(input: DayPlanItemInput) {
     await prisma.dayPlanItem.create({ data: { ...data, dayPlanId: dayPlan.id, sortOrder: (last._max.sortOrder ?? -1) + 1 } });
   }
   revalidatePath(`/trips/${dayPlan.tripId}`);
+}
+
+export async function saveMustDo(input: unknown) {
+  const parsed = mustDoSchema.parse(input);
+  const user = await requireCurrentUser();
+  const trip = await prisma.trip.findFirst({ where: { id: parsed.tripId, userId: user.id }, select: { id: true } });
+  if (!trip) throw new Error("Trip not found.");
+  const data = { title: parsed.title, entityId: parsed.entityId, entityType: parsed.entityType, notes: parsed.notes, priority: parsed.priority };
+  if (parsed.id) {
+    const existing = await prisma.mustDo.findFirst({ where: { id: parsed.id, tripId: trip.id }, select: { id: true } });
+    if (!existing) throw new Error("Must-do not found.");
+    await prisma.mustDo.update({ where: { id: existing.id }, data });
+  } else {
+    await prisma.mustDo.create({ data: { ...data, tripId: trip.id } });
+  }
+  revalidatePath(`/trips/${trip.id}`);
+}
+
+export async function removeMustDo(input: { mustDoId: string }) {
+  const { mustDoId } = assignMustDoSchema.pick({ mustDoId: true }).parse(input);
+  const user = await requireCurrentUser();
+  const mustDo = await prisma.mustDo.findFirst({ where: { id: mustDoId, trip: { userId: user.id } }, select: { id: true, tripId: true } });
+  if (!mustDo) throw new Error("Must-do not found.");
+  await prisma.mustDo.delete({ where: { id: mustDo.id } });
+  revalidatePath(`/trips/${mustDo.tripId}`);
+}
+
+export async function assignMustDo(input: unknown) {
+  const parsed = assignMustDoSchema.parse(input);
+  const user = await requireCurrentUser();
+  const mustDo = await prisma.mustDo.findFirst({ where: { id: parsed.mustDoId, trip: { userId: user.id } }, select: { id: true, tripId: true, title: true, entityId: true, entityType: true, notes: true, dayPlanItemId: true } });
+  if (!mustDo || mustDo.dayPlanItemId) throw new Error("Must-do is unavailable.");
+  const day = await prisma.dayPlan.findFirst({ where: { id: parsed.dayPlanId, tripId: mustDo.tripId, trip: { userId: user.id } }, select: { id: true } });
+  if (!day) throw new Error("Planning day not found.");
+  const last = await prisma.dayPlanItem.aggregate({ where: { dayPlanId: day.id }, _max: { sortOrder: true } });
+  const item = await prisma.dayPlanItem.create({ data: { dayPlanId: day.id, entityId: mustDo.entityId ?? `must-do:${mustDo.id}`, entityType: mustDo.entityType ?? "EXPERIENCE", title: mustDo.title, notes: mustDo.notes, sortOrder: (last._max.sortOrder ?? -1) + 1 } });
+  await prisma.mustDo.update({ where: { id: mustDo.id }, data: { dayPlanItemId: item.id } });
+  revalidatePath(`/trips/${mustDo.tripId}`);
+}
+
+const STARTER_NAMES: Array<[RegExp, string[]]> = [
+  [/magic kingdom/i, ["Jungle Cruise", "Haunted Mansion", "Pirates of the Caribbean"]],
+  [/epcot/i, ["Spaceship Earth", "Living with the Land", "Remy's Ratatouille Adventure"]],
+  [/hollywood/i, ["The Twilight Zone Tower of Terror", "Toy Story Mania!", "Mickey & Minnie's Runaway Railway"]],
+  [/animal kingdom/i, ["Kilimanjaro Safaris", "Expedition Everest - Legend of the Forbidden Mountain", "Na'vi River Journey"]],
+];
+
+export async function applyStarterTemplate(input: unknown) {
+  const { dayPlanId } = starterTemplateSchema.parse(input);
+  const user = await requireCurrentUser();
+  const day = await prisma.dayPlan.findFirst({ where: { id: dayPlanId, trip: { userId: user.id } }, include: { items: { select: { id: true } } } });
+  if (!day?.parkId || day.items.length) throw new Error("Starter plans are available for empty park days.");
+  const park = await prisma.parkEntity.findFirst({ where: { id: day.parkId, entityType: "PARK" }, select: { name: true } });
+  const names = STARTER_NAMES.find(([pattern]) => pattern.test(park?.name ?? ""))?.[1] ?? [];
+  const descendantIds = await getDescendantEntityIds(day.parkId);
+  const entities = await prisma.parkEntity.findMany({ where: { id: { in: descendantIds }, name: { in: names }, entityType: { in: ["ATTRACTION", "SHOW", "EXPERIENCE"] } }, select: { id: true, name: true, entityType: true } });
+  const ordered = names.flatMap((name) => entities.filter((entity) => entity.name === name));
+  if (!ordered.length) throw new Error("No starter offerings were found in the current directory. Refresh the directory and try again.");
+  await prisma.dayPlanItem.createMany({ data: ordered.map((entity, index) => ({ dayPlanId: day.id, entityId: entity.id, entityType: entity.entityType, title: entity.name, timingType: "TIME_OF_DAY", timeOfDay: index === 0 ? "MORNING" : index === ordered.length - 1 ? "EVENING" : "AFTERNOON", sortOrder: index })) });
+  revalidatePath(`/trips/${day.tripId}`);
 }
 
 export async function removeDayPlanItem(input: { itemId: string }) {

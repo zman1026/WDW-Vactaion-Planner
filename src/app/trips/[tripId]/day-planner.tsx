@@ -7,15 +7,15 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
-import { assignPark, clearDay, copyDay, removeDayPlanItem, reorderDayPlanItem, saveDayPlanItem } from "./actions";
+import { applyStarterTemplate, assignPark, assignSecondaryPark, clearDay, copyDay, removeDayPlanItem, reorderDayPlanItem, saveDayPlanItem } from "./actions";
 import { AiSuggestions } from "./ai-suggestions";
 import { TimingHelper } from "./timing-helper";
 
 type Park = { id: string; name: string };
-type PlanItem = { id: string; entityId: string; entityType: string; title: string; timingType: string; timeOfDay: string | null; startTime: string | null; endTime: string | null; estimatedCostCents: number | null; notes: string | null };
+type PlanItem = { id: string; entityId: string; entityType: string; title: string; timingType: string; timeOfDay: string | null; startTime: string | null; endTime: string | null; estimatedCostCents: number | null; notes: string | null; bookingStatus: string; confirmationNumber: string | null; partySizeOverride: number | null; backupNote: string | null; paidExtraType: string | null };
 type SearchEntity = { id: string; name: string; entityType: string };
 
-export function DayPlanner({ tripId, dayPlanId, parkId, parks, items, days, emptyTitle, emptyDescription }: { tripId: string; dayPlanId: string; parkId: string | null; parks: Park[]; items: PlanItem[]; days: Array<{ id: string; label: string }>; emptyTitle: string; emptyDescription: string }) {
+export function DayPlanner({ tripId, dayPlanId, parkId, secondaryParkId, parks, items, days, emptyTitle, emptyDescription, coachingNote }: { tripId: string; dayPlanId: string; parkId: string | null; secondaryParkId: string | null; parks: Park[]; items: PlanItem[]; days: Array<{ id: string; label: string }>; emptyTitle: string; emptyDescription: string; coachingNote?: string | null }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [editor, setEditor] = useState<PlanItem | "new" | null>(null);
@@ -31,13 +31,12 @@ export function DayPlanner({ tripId, dayPlanId, parkId, parks, items, days, empt
   }
 
   return <div className="space-y-6">
-    <Field label="Park for this day" hint="The offering picker will use this park to narrow the list.">
-      <Select value={parkId ?? ""} disabled={isPending} onChange={(event) => run(() => assignPark({ dayPlanId, parkId: event.target.value || null }))}>
-        <option value="">Rest day / no park</option>{parks.map((park) => <option key={park.id} value={park.id}>{park.name}</option>)}
-      </Select>
-    </Field>
+    <details className="day-accent-border rounded-control border bg-white/45 p-4" open={!parkId}>
+      <summary className="cursor-pointer text-sm font-semibold text-primary">Park assignment{secondaryParkId ? " · Hopper day" : ""}</summary>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2"><Field label="Primary park" hint="The day theme and offering picker follow this park."><Select value={parkId ?? ""} disabled={isPending} onChange={(event) => run(() => assignPark({ dayPlanId, parkId: event.target.value || null }))}><option value="">Rest day / no park</option>{parks.map((park) => <option key={park.id} value={park.id}>{park.name}</option>)}</Select></Field><Field label="Also visiting" optional hint="Adds a hopper badge; the primary park keeps the theme."><Select value={secondaryParkId ?? ""} disabled={isPending || !parkId} onChange={(event) => run(() => assignSecondaryPark({ dayPlanId, secondaryParkId: event.target.value || null }))}><option value="">No second park</option>{parks.filter((park) => park.id !== parkId).map((park) => <option key={park.id} value={park.id}>{park.name}</option>)}</Select></Field></div>
+    </details>
 
-    {items.length === 0 ? <EmptyState title={emptyTitle} description={emptyDescription} className="day-accent-border bg-white/55" icon={<DayPathIcon />} /> : <div className="space-y-7">
+    {items.length === 0 ? <div className="space-y-3"><EmptyState title={emptyTitle} description={emptyDescription} className="day-accent-border bg-white/55" icon={<DayPathIcon />} />{parkId && <Button type="button" variant="secondary" disabled={isPending} onClick={() => run(() => applyStarterTemplate({ dayPlanId }))} className="w-full border-[rgb(var(--day-accent)/.25)] bg-white/55">Add a gentle starter plan</Button>}</div> : <div className="space-y-7">
       {timelineBands(items).map((band) => band.entries.length > 0 && <section key={band.label}>
         <div className="mb-3 flex items-center gap-3"><span className="day-accent-bg size-2.5 rounded-full" /><h3 className="font-display text-xl font-semibold text-primary">{band.label}</h3><span className="text-xs text-muted">{band.range}</span></div>
         <ol className="relative ml-1 border-l border-[rgb(var(--day-accent)/.24)] pl-5 sm:pl-7">{band.entries.map(({ item, index }) => {
@@ -46,7 +45,7 @@ export function DayPlanner({ tripId, dayPlanId, parkId, parks, items, days, empt
           <span className="day-accent-bg absolute -left-[1.62rem] top-5 size-3 rounded-full border-2 border-surface sm:-left-[2.12rem]" />
           <article className={`day-item rounded-control border p-4 transition hover:shadow-card ${presentation.className}`}>
             <div className="flex flex-col items-start justify-between gap-3 sm:flex-row">
-              <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold text-primary">{item.title}</p><Badge className="border-[rgb(var(--day-accent)/.2)] bg-white/55 text-[rgb(var(--day-accent-deep))]">{presentation.label}</Badge>{isPaidExtra(item) && <Badge className="border-gold/30 bg-gold/10 text-gold">Paid extra</Badge>}</div><p className={`mt-1 text-xs font-semibold ${presentation.emphasizeTime ? "day-accent-text text-sm" : "text-muted"}`}>{timingDescription(item)}</p>{item.estimatedCostCents !== null && <p className="mt-2 text-xs text-muted">Estimated ${(item.estimatedCostCents / 100).toFixed(2)}</p>}{item.notes && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted">{item.notes}</p>}</div>
+              <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold text-primary">{item.title}</p><Badge className="border-[rgb(var(--day-accent)/.2)] bg-white/55 text-[rgb(var(--day-accent-deep))]">{presentation.label}</Badge>{item.bookingStatus === "BOOKED" && <Badge className="border-success/25 bg-success/5 text-success">Booked</Badge>}{item.entityType === "RESTAURANT" && item.bookingStatus !== "BOOKED" && <Badge className="border-warning/25 bg-warning/5 text-warning">Needs reservation</Badge>}{item.paidExtraType && <Badge className="border-gold/30 bg-gold/10 text-gold">{paidExtraLabel(item.paidExtraType)}</Badge>}</div><p className={`mt-1 text-xs font-semibold ${presentation.emphasizeTime ? "day-accent-text text-sm" : "text-muted"}`}>{timingDescription(item)}</p>{item.confirmationNumber && <p className="mt-2 text-xs font-semibold text-primary">Confirmation {item.confirmationNumber}{item.partySizeOverride ? ` · Party of ${item.partySizeOverride}` : ""}</p>}{item.estimatedCostCents !== null && <p className="mt-2 text-xs text-muted">Estimated ${(item.estimatedCostCents / 100).toFixed(2)}</p>}{item.notes && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted">{item.notes}</p>}{item.backupNote && <p className="mt-2 text-xs text-muted"><strong>Backup:</strong> {item.backupNote}</p>}</div>
               <div className="flex shrink-0 flex-wrap gap-1"><SmallButton label="Move up" disabled={isPending || index === 0} onClick={() => run(() => reorderDayPlanItem({ itemId: item.id, direction: "up" }))}>↑</SmallButton><SmallButton label="Move down" disabled={isPending || index === items.length - 1} onClick={() => run(() => reorderDayPlanItem({ itemId: item.id, direction: "down" }))}>↓</SmallButton><SmallButton label={`Edit ${item.title}`} disabled={isPending} onClick={() => setEditor(item)}>Edit</SmallButton><SmallButton label={`Remove ${item.title}`} disabled={isPending} onClick={() => { if (window.confirm(`Remove ${item.title} from this day?`)) run(() => removeDayPlanItem({ itemId: item.id })); }}>×</SmallButton></div>
             </div>
           </article>
@@ -62,10 +61,10 @@ export function DayPlanner({ tripId, dayPlanId, parkId, parks, items, days, empt
       <Button type="button" variant="danger" size="sm" disabled={isPending || items.length === 0} onClick={() => { if (window.confirm("Remove every itinerary item from this day? The park assignment will remain.")) run(() => clearDay({ dayPlanId })); }}>Clear day</Button>
     </div>
 
-    <TimingHelper parkId={parkId} items={items} />
+    <TimingHelper parkId={parkId} items={items} coachingNote={coachingNote} />
     <Button type="button" size="lg" onClick={() => setEditor("new")} className="day-primary sticky bottom-3 z-20 w-full shadow-lift sm:static">Add to this day</Button>
     <Modal open={Boolean(editor)} title={editor === "new" ? "Add to this day" : "Edit plan item"} onClose={() => setEditor(null)}>{editor && <ItemEditor dayPlanId={dayPlanId} parkId={parkId} item={editor === "new" ? undefined : editor} isPending={isPending} onSave={(input) => run(() => saveDayPlanItem(input), () => setEditor(null))} />}</Modal>
-    <AiSuggestions tripId={tripId} dayPlanId={dayPlanId} hasPark={Boolean(parkId)} disabled={isPending} onApply={(suggestions) => run(async () => { for (const item of suggestions) await saveDayPlanItem({ dayPlanId, entityId: item.entityId, entityType: item.entityType, title: item.title, timingType: "EXACT", timeOfDay: "", startTime: item.startTime, endTime: item.endTime, estimatedCost: (item.estimatedCostCents / 100).toFixed(2), notes: item.notes }); })} />
+    <AiSuggestions tripId={tripId} dayPlanId={dayPlanId} hasPark={Boolean(parkId)} disabled={isPending} onApply={(suggestions) => run(async () => { for (const item of suggestions) await saveDayPlanItem({ dayPlanId, entityId: item.entityId, entityType: item.entityType, title: item.title, timingType: "EXACT", timeOfDay: "", startTime: item.startTime, endTime: item.endTime, estimatedCost: (item.estimatedCostCents / 100).toFixed(2), notes: item.notes, bookingStatus: item.entityType === "RESTAURANT" ? "WISHLIST" : "NONE", confirmationNumber: "", partySizeOverride: "", backupNote: "", paidExtraType: "" }); })} />
   </div>;
 }
 
@@ -85,9 +84,7 @@ function itemPresentation(item: PlanItem) {
   return { label: "Experience", className: "", emphasizeTime: false };
 }
 
-function isPaidExtra(item: PlanItem) {
-  return /lightning lane|paid extra|individual lane/i.test(item.notes ?? "");
-}
+function paidExtraLabel(value: string) { return value === "LIGHTNING_LANE" ? "Lightning Lane" : value === "SPECIAL_EVENT" ? "Special event" : "Paid extra"; }
 
 function DayPathIcon() {
   return <svg viewBox="0 0 24 24" className="size-7 fill-none stroke-current stroke-[1.6]" aria-hidden="true"><path d="M5 19c3-1 3-5 6-6s4 2 7 0c2-1 2-4 0-6" /><circle cx="5" cy="19" r="2" /><circle cx="18" cy="6" r="2" /></svg>;
@@ -127,7 +124,8 @@ function ItemEditor({ dayPlanId, parkId, item, isPending, onSave }: { dayPlanId:
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (!selected) return;
     const form = new FormData(event.currentTarget);
-    onSave({ id: item?.id, dayPlanId, entityId: selected.id, entityType: selected.entityType as "ATTRACTION" | "RESTAURANT" | "SHOW" | "EXPERIENCE", title: String(form.get("title") ?? selected.name), timingType, timeOfDay: String(form.get("timeOfDay") ?? "") as "" | "MORNING" | "AFTERNOON" | "EVENING", startTime: String(form.get("startTime") ?? ""), endTime: String(form.get("endTime") ?? ""), estimatedCost: String(form.get("estimatedCost") ?? ""), notes: String(form.get("notes") ?? "") });
+    const partySize = String(form.get("partySizeOverride") ?? "");
+    onSave({ id: item?.id, dayPlanId, entityId: selected.id, entityType: selected.entityType as "ATTRACTION" | "RESTAURANT" | "SHOW" | "EXPERIENCE", title: String(form.get("title") ?? selected.name), timingType, timeOfDay: String(form.get("timeOfDay") ?? "") as "" | "MORNING" | "AFTERNOON" | "EVENING", startTime: String(form.get("startTime") ?? ""), endTime: String(form.get("endTime") ?? ""), estimatedCost: String(form.get("estimatedCost") ?? ""), notes: String(form.get("notes") ?? ""), bookingStatus: String(form.get("bookingStatus") ?? "NONE") as "NONE" | "WISHLIST" | "BOOKED", confirmationNumber: String(form.get("confirmationNumber") ?? ""), partySizeOverride: partySize ? Number(partySize) : "", backupNote: String(form.get("backupNote") ?? ""), paidExtraType: String(form.get("paidExtraType") ?? "") as "" | "LIGHTNING_LANE" | "SPECIAL_EVENT" | "OTHER" });
   }
 
   return <form onSubmit={submit} className="space-y-4">
@@ -140,6 +138,8 @@ function ItemEditor({ dayPlanId, parkId, item, isPending, onSave }: { dayPlanId:
       <fieldset><legend className="text-sm font-semibold text-ink">When should this happen?</legend><div className="mt-2 grid gap-2 sm:grid-cols-3">{([ ["EXACT", "Fixed time", "Reservation, showtime, or hard start"], ["TIME_OF_DAY", "Part of day", "Morning, afternoon, or evening"], ["FLEXIBLE", "Anytime", "No timing preference"] ] as const).map(([value, label, help]) => <label key={value} className={`cursor-pointer rounded-control border p-3 transition ${timingType === value ? "border-gold bg-sand/20 ring-2 ring-gold/15" : "border-border bg-surface hover:border-gold/50"}`}><input type="radio" name="timingType" value={value} checked={timingType === value} onChange={() => setTimingType(value)} className="sr-only" /><span className="block text-sm font-semibold text-primary">{label}</span><span className="mt-1 block text-xs font-normal text-muted">{help}</span></label>)}</div></fieldset>
       {timingType === "EXACT" && <div className="grid gap-3 sm:grid-cols-2"><Field label="Fixed start time"><Input name="startTime" type="time" required defaultValue={item?.startTime ?? ""} /></Field><Field label="End time" optional><Input name="endTime" type="time" defaultValue={item?.endTime ?? ""} /></Field></div>}
       {timingType === "TIME_OF_DAY" && <Field label="Preferred part of day"><Select name="timeOfDay" required defaultValue={item?.timeOfDay ?? "MORNING"}><option value="MORNING">Morning</option><option value="AFTERNOON">Afternoon</option><option value="EVENING">Evening</option></Select></Field>}
+      <div className="grid gap-3 sm:grid-cols-2"><Field label="Planning status"><Select name="bookingStatus" defaultValue={item?.bookingStatus ?? (selected.entityType === "RESTAURANT" ? "WISHLIST" : "NONE")}><option value="NONE">Not applicable</option><option value="WISHLIST">Wishlist / not booked</option><option value="BOOKED">Booked</option></Select></Field><Field label="Paid extra" optional><Select name="paidExtraType" defaultValue={item?.paidExtraType ?? ""}><option value="">No paid extra</option><option value="LIGHTNING_LANE">Lightning Lane</option><option value="SPECIAL_EVENT">Special event</option><option value="OTHER">Other paid extra</option></Select></Field></div>
+      {selected.entityType === "RESTAURANT" && <div className="rounded-control border border-border bg-parchment/45 p-4"><p className="mb-3 text-sm font-semibold text-primary">Dining details</p><div className="grid gap-3 sm:grid-cols-2"><Field label="Confirmation number" optional><Input name="confirmationNumber" defaultValue={item?.confirmationNumber ?? ""} maxLength={100} /></Field><Field label="Party size" optional><Input name="partySizeOverride" type="number" min="1" max="50" defaultValue={item?.partySizeOverride ?? ""} /></Field></div><Field label="Backup restaurant or plan" optional><Input name="backupNote" defaultValue={item?.backupNote ?? ""} maxLength={500} /></Field></div>}
       <Field label="Estimated cost ($)" optional><Input name="estimatedCost" type="number" min="0" step="0.01" defaultValue={item?.estimatedCostCents == null ? "" : (item.estimatedCostCents / 100).toFixed(2)} /></Field>
       <Field label="Notes" optional><Textarea name="notes" defaultValue={item?.notes ?? ""} maxLength={1000} rows={3} /></Field>
       <Button type="submit" disabled={isPending}>{isPending ? "Saving…" : "Save item"}</Button>

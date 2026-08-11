@@ -137,7 +137,7 @@ export const DAY_THEMES: Record<DayThemeId, DayTheme> = {
 
 const HOTEL_THEME_RULES: Array<[RegExp, DayThemeId]> = [
   [/grand floridian|saratoga springs|old key west/i, "hotel-victorian"],
-  [/contemporary|bay lake tower|riviera|swan|dolphin/i, "hotel-modern"],
+  [/contemporary|bay lake tower|riviera|swan|dolphin|pop century|art of animation|all-star/i, "hotel-modern"],
   [/polynesian|caribbean beach|coronado springs/i, "hotel-tropical"],
   [/wilderness lodge|fort wilderness|copper creek|boulder ridge/i, "hotel-wilderness"],
   [/beach club|yacht club|boardwalk|port orleans/i, "hotel-coastal"],

@@ -37,6 +37,7 @@ model Trip {
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   dayPlans DayPlan[]
+  mustDos  MustDo[]
   hotelId  String?   // optional link to a hotel entity
 
   @@index([userId])
@@ -47,6 +48,7 @@ model DayPlan {
   tripId    String
   date      DateTime // the specific day
   parkId    String?  // ThemeParks entity ID of the park for that day (or null for rest day)
+  secondaryParkId String? // optional second park for hopper days; parkId remains primary
   notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -70,13 +72,37 @@ model DayPlanItem {
   endTime     String?  // "10:45" or null
   estimatedCostCents Int? 
   notes       String?
+  bookingStatus String @default("NONE") // NONE | WISHLIST | BOOKED
+  confirmationNumber String?
+  partySizeOverride Int?
+  backupNote  String?
+  paidExtraType String? // LIGHTNING_LANE | SPECIAL_EVENT | OTHER
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   dayPlan DayPlan @relation(fields: [dayPlanId], references: [id], onDelete: Cascade)
+  mustDo  MustDo?
 
   @@index([dayPlanId])
+}
+
+model MustDo {
+  id            String   @id @default(cuid())
+  tripId        String
+  title         String
+  entityId      String?
+  entityType    String?
+  notes         String?
+  priority      Int      @default(2) // 1 high, 2 medium, 3 low
+  dayPlanItemId String?  @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  trip        Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  dayPlanItem DayPlanItem? @relation(fields: [dayPlanItemId], references: [id], onDelete: SetNull)
+
+  @@index([tripId])
 }
 
 // ========== Cached ThemeParks Entities ==========

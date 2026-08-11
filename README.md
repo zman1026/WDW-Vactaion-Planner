@@ -88,6 +88,15 @@ prisma/
 - [x] Clear/copy planning-day actions and mobile planner improvements
 - [x] Flexible item timing: fixed reservations, part-of-day preferences, or anytime
 - [x] Park-scoped searchable offering dropdowns by category
+- [x] Immersive park and hotel day themes with themed overview, timeline, mobile rail, and print-safe share program
+- [x] Dining booking details, confirmation numbers, party-size overrides, and backup plans
+- [x] Explicit Lightning Lane, special-event, and other paid-extra tracking with budget callouts
+- [x] Trip-level must-do board with assignment onto planning days
+- [x] Primary plus secondary park support for hopper days
+- [x] Themed Explore park hubs with optional live data and add-to-day controls
+- [x] Guided trip setup, cache-resolved starter plans, and lightweight day-rhythm coaching
+- [x] Optional Google OAuth alongside email/password authentication
+- [x] View-only share framing, copy-link action, and optional hidden costs
 
 ### Phase 1 complete
 
@@ -108,6 +117,16 @@ Trips can be edited or deleted, assigned a cached WDW hotel, and given a reusabl
 Itinerary timing is independent of entity type. Attractions, restaurants, shows, and experiences can use a fixed reservation/showtime, a preferred morning/afternoon/evening slot, or remain flexible for any time. Only fixed items participate in exact overlap warnings.
 
 The item picker supports discovery as well as name search. Selecting Attractions, Restaurants, Shows, or Experiences loads the available cached offerings for that day's park; users can browse the dropdown alphabetically or type to filter it.
+
+### Planning workflows and themed places
+
+`src/lib/day-themes.ts` is the single resolver for park and hotel identities. Primary parks determine a day's theme; rest days map recognized hotel names to Victorian, modern, tropical, wilderness, coastal, or savanna personalities, with the polished `rest` theme as the fallback. A secondary park adds hopper context without changing the primary theme.
+
+The `20260810230000_planning_workflows` migration adds nullable dining and paid-extra fields, `DayPlan.secondaryParkId`, and the trip-scoped `MustDo` model. Existing itinerary items remain valid because operational fields are nullable or use the `NONE` default.
+
+Explore reports the directory's latest sync time and supports adding cached entities directly to a signed-in trip day. For production freshness, set `CRON_SECRET` and schedule a Railway cron request to `POST /api/entities/sync` with `Authorization: Bearer <CRON_SECRET>`; signed-in users can also refresh in the app. Entity writes are idempotent upserts.
+
+Google sign-in is optional. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` and register `/api/auth/callback/google` for the deployment URL. Email/password registration and sign-in remain available.
 
 ## Data Source Notes
 
