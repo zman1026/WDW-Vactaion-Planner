@@ -58,7 +58,7 @@ h1, h2, .font-display { font-family: var(--font-display); }
   --day-glow: 232 213 163;
   color: rgb(var(--color-ink));
   background-color: rgb(var(--day-wash));
-  transition: background-color 320ms ease, border-color 320ms ease, box-shadow 320ms ease;
+  transition: background-color 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
 }
 
 .day-theme[data-theme="mk"] { --day-accent: 180 139 50; --day-accent-deep: 116 78 26; --day-wash: 255 249 235; --day-glow: 225 191 111; }
@@ -108,7 +108,7 @@ h1, h2, .font-display { font-family: var(--font-display); }
 .day-item--dining { border-left: 4px solid rgb(var(--day-accent)); box-shadow: 0 10px 24px rgb(var(--day-accent) / .08); }
 .day-item--moment { background: linear-gradient(110deg, rgb(var(--day-accent) / .1), rgb(255 255 255 / .82)); }
 .day-item--soft { border-style: dashed; background: rgb(255 255 255 / .48); }
-.day-canvas-enter { animation: day-canvas-in 300ms ease both; }
+.day-canvas-enter { animation: day-canvas-in 220ms ease both; }
 @keyframes day-canvas-in { from { opacity: .35; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .day-canvas-enter { animation: none; } }
 
@@ -117,3 +117,8 @@ h1, h2, .font-display { font-family: var(--font-display); }
   .share-day { break-inside: avoid; box-shadow: none !important; background: white !important; }
   .day-theme__hero { background: white !important; }
 }
+
+body:has(.planner-page) > [role="main"] { max-width: 100rem; padding-top: 1rem; padding-bottom: 1rem; }
+.planner-tools { display: contents; }
+@media (min-width: 1024px) { main > .planner-tools .planner-tools__desktop { display: none !important; } }
+@media (max-width: 1023px) { .planner-page .grid > .planner-tools { display: none; } }
