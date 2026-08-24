@@ -11,6 +11,7 @@ export type TripProgressInput = {
   hasPartyProfile: boolean;
   mustDoCount: number;
   days: ProgressDay[];
+  reservations?: Array<{ status: string; dayPlanId?: string | null }>;
 };
 
 export type TripProgress = {
@@ -33,19 +34,23 @@ function itemCount(day: ProgressDay) {
 
 export function calculateTripProgress(input: TripProgressInput): TripProgress {
   const totalDays = input.days.length;
+  const reservationDayIds = new Set(input.reservations?.map((reservation) => reservation.dayPlanId).filter((id): id is string => Boolean(id)) ?? []);
+  const hasPlan = (day: ProgressDay) => itemCount(day) > 0 || reservationDayIds.has(day.id);
   const assignedDays = input.days.filter((day) => Boolean(day.parkId)).length;
-  const framedDays = input.days.filter((day) => Boolean(day.parkId || day.notes?.trim() || itemCount(day))).length;
-  const plannedDays = input.days.filter((day) => itemCount(day) > 0).length;
+  const framedDays = input.days.filter((day) => Boolean(day.parkId || day.notes?.trim() || hasPlan(day))).length;
+  const plannedDays = input.days.filter(hasPlan).length;
   const parkDays = input.days.filter((day) => Boolean(day.parkId));
-  const plannedParkDays = parkDays.filter((day) => itemCount(day) > 0).length;
-  const reservationItems = input.days.flatMap((day) => typeof day.items === "number" ? [] : day.items).filter((item) => item.bookingStatus === "WISHLIST" || item.bookingStatus === "BOOKED");
-  const openReservations = reservationItems.filter((item) => item.bookingStatus === "WISHLIST").length;
-  const bookedReservations = reservationItems.length - openReservations;
+  const plannedParkDays = parkDays.filter(hasPlan).length;
+  const plannedBookings = input.days.flatMap((day) => typeof day.items === "number" ? [] : day.items).filter((item) => item.bookingStatus === "WISHLIST" || item.bookingStatus === "BOOKED");
+  const directReservations = input.reservations ?? [];
+  const openReservations = plannedBookings.filter((item) => item.bookingStatus === "WISHLIST").length + directReservations.filter((item) => item.status !== "CONFIRMED").length;
+  const bookedReservations = plannedBookings.filter((item) => item.bookingStatus === "BOOKED").length + directReservations.filter((item) => item.status === "CONFIRMED").length;
+  const reservationCount = openReservations + bookedReservations;
 
   const ratios = {
     framework: totalDays ? framedDays / totalDays : 0,
     itinerary: parkDays.length ? plannedParkDays / parkDays.length : 0,
-    reservations: reservationItems.length ? bookedReservations / reservationItems.length : 1,
+    reservations: reservationCount ? bookedReservations / reservationCount : 1,
   };
   const score = Math.round(
     (input.hotelId ? 10 : 0) +
@@ -57,8 +62,8 @@ export function calculateTripProgress(input: TripProgressInput): TripProgress {
     ratios.reservations * 10,
   );
 
-  const firstUnframed = input.days.find((day) => !day.parkId && !day.notes?.trim() && itemCount(day) === 0);
-  const firstEmptyParkDay = input.days.find((day) => day.parkId && itemCount(day) === 0);
+  const firstUnframed = input.days.find((day) => !day.parkId && !day.notes?.trim() && !hasPlan(day));
+  const firstEmptyParkDay = input.days.find((day) => day.parkId && !hasPlan(day));
   let nextAction: TripProgress["nextAction"];
   if (assignedDays === 0) {
     nextAction = { title: "Choose a plan for the first day", description: "Pick a park or make it a relaxed resort day.", dayId: input.days[0]?.id };
@@ -69,7 +74,7 @@ export function calculateTripProgress(input: TripProgressInput): TripProgress {
   } else if (firstEmptyParkDay) {
     nextAction = { title: "Add a plan to a park day", description: "A few anchors are enough—leave room to be flexible.", dayId: firstEmptyParkDay.id };
   } else if (openReservations > 0) {
-    nextAction = { title: `Confirm ${openReservations} open reservation${openReservations === 1 ? "" : "s"}`, description: "Update dining wishes once they are booked.", dayId: input.days.find((day) => typeof day.items !== "number" && day.items.some((item) => item.bookingStatus === "WISHLIST"))?.id };
+    nextAction = { title: `Confirm ${openReservations} open reservation${openReservations === 1 ? "" : "s"}`, description: "Update wish-list and pending bookings once they are settled.", dayId: input.days.find((day) => (typeof day.items !== "number" && day.items.some((item) => item.bookingStatus === "WISHLIST")) || input.reservations?.some((reservation) => reservation.dayPlanId === day.id && reservation.status !== "CONFIRMED"))?.id };
   } else if (!input.hasPartyProfile) {
     nextAction = { title: "Add party preferences", description: "Ages, accessibility, and food notes make every suggestion better." };
   } else {

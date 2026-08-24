@@ -22,13 +22,15 @@ export async function updateTrip(input: unknown): Promise<MutationResult> {
   const parsed = updateTripSchema.safeParse(input);
   if (!parsed.success) return { success: false, message: parsed.error.issues[0]?.message ?? "Check the trip details." };
   const user = await requireCurrentUser();
-  const trip = await prisma.trip.findFirst({ where: { id: parsed.data.tripId, userId: user.id }, include: { dayPlans: { select: { id: true, date: true, parkId: true, secondaryParkId: true, notes: true, _count: { select: { items: true } } } } } });
+  const trip = await prisma.trip.findFirst({ where: { id: parsed.data.tripId, userId: user.id }, include: { reservations: { select: { date: true, title: true } }, dayPlans: { select: { id: true, date: true, parkId: true, secondaryParkId: true, notes: true, _count: { select: { items: true } } } } } });
   if (!trip) return { success: false, message: "Trip not found." };
   const startDate = calendarDateToUtc(parsed.data.startDate);
   const endDate = calendarDateToUtc(parsed.data.endDate);
   const outside = trip.dayPlans.filter((day) => day.date < startDate || day.date > endDate);
   const plannedOutside = outside.filter((day) => day.parkId || day.secondaryParkId || day.notes || day._count.items > 0);
   if (plannedOutside.length) return { success: false, message: `The new dates exclude planned ${plannedOutside.length === 1 ? "day" : "days"}: ${plannedOutside.map((day) => format(day.date, "MMM d")).join(", ")}. Remove their items, notes, and park assignments before shortening the trip.` };
+  const reservationsOutside = trip.reservations.filter((reservation) => reservation.date < startDate || reservation.date > endDate);
+  if (reservationsOutside.length) return { success: false, message: `The new dates leave out ${reservationsOutside.length === 1 ? "a reservation" : `${reservationsOutside.length} reservations`}: ${reservationsOutside.slice(0, 3).map((reservation) => reservation.title).join(", ")}. Move or remove ${reservationsOutside.length === 1 ? "it" : "them"} before shortening the trip.` };
   const desiredDates = eachDayOfInterval({ start: startDate, end: endDate });
   const existingDates = new Set(trip.dayPlans.map((day) => day.date.toISOString().slice(0, 10)));
   await prisma.$transaction([
@@ -69,9 +71,12 @@ export async function saveReservation(input: unknown): Promise<MutationResult> {
   const user = await requireCurrentUser();
   const trip = await prisma.trip.findFirst({ where: { id: parsed.data.tripId, userId: user.id }, select: { id: true, startDate: true, endDate: true } });
   if (!trip) return { success: false, message: "Trip not found." };
-  const day = parsed.data.dayPlanId ? await prisma.dayPlan.findFirst({ where: { id: parsed.data.dayPlanId, tripId: trip.id }, select: { id: true, date: true } }) : null;
+  const requestedDate = calendarDateToUtc(parsed.data.reservationDate);
+  const day = parsed.data.dayPlanId
+    ? await prisma.dayPlan.findFirst({ where: { id: parsed.data.dayPlanId, tripId: trip.id }, select: { id: true, date: true } })
+    : await prisma.dayPlan.findUnique({ where: { tripId_date: { tripId: trip.id, date: requestedDate } }, select: { id: true, date: true } });
   if (parsed.data.dayPlanId && !day) return { success: false, message: "Choose a day from this trip." };
-  const date = day?.date ?? calendarDateToUtc(parsed.data.reservationDate);
+  const date = day?.date ?? requestedDate;
   if (date < trip.startDate || date > trip.endDate) return { success: false, message: "Reservation date must fall within the trip." };
   const data = {
     dayPlanId: day?.id ?? null,
@@ -95,7 +100,7 @@ export async function saveReservation(input: unknown): Promise<MutationResult> {
     await prisma.reservation.create({ data: { ...data, tripId: trip.id } });
   }
   revalidatePath(`/trips/${trip.id}`); revalidatePath(`/share/${trip.id}`);
-  return { success: true, message: parsed.data.id ? "Reservation updated." : "Reservation added." };
+  return { success: true, message: parsed.data.id ? "Reservation updated everywhere." : "Reservation added to your trip day." };
 }
 
 export async function removeReservation(input: unknown): Promise<MutationResult> {
@@ -168,7 +173,7 @@ export async function copyDay(input: unknown) {
   const target = await prisma.dayPlan.findFirst({ where: { id: parsed.targetDayPlanId, tripId: source.tripId, trip: { userId: user.id } }, select: { id: true } });
   if (!target) throw new Error("Target day not found.");
   const last = await prisma.dayPlanItem.aggregate({ where: { dayPlanId: target.id }, _max: { sortOrder: true } });
-  await prisma.dayPlanItem.createMany({ data: source.items.map((item, index) => ({ dayPlanId: target.id, entityId: item.entityId, entityType: item.entityType, title: item.title, timingType: item.timingType, timeOfDay: item.timeOfDay, startTime: item.startTime, endTime: item.endTime, estimatedCostCents: item.estimatedCostCents, notes: item.notes, bookingStatus: item.bookingStatus, confirmationNumber: item.confirmationNumber, partySizeOverride: item.partySizeOverride, backupNote: item.backupNote, paidExtraType: item.paidExtraType, sortOrder: (last._max.sortOrder ?? -1) + index + 1 })) });
+  await prisma.dayPlanItem.createMany({ data: source.items.map((item, index) => ({ dayPlanId: target.id, entityId: item.entityId, entityType: item.entityType, title: item.title, timingType: item.timingType, timeOfDay: item.timeOfDay, startTime: item.startTime, endTime: item.endTime, estimatedCostCents: item.estimatedCostCents, notes: item.notes, bookingStatus: item.bookingStatus === "NONE" ? "NONE" : "WISHLIST", confirmationNumber: null, partySizeOverride: item.partySizeOverride, backupNote: item.backupNote, paidExtraType: item.paidExtraType, sortOrder: (last._max.sortOrder ?? -1) + index + 1 })) });
   revalidatePath(`/trips/${source.tripId}`);
 }
 

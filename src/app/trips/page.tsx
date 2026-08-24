@@ -25,9 +25,10 @@ export default async function TripsPage() {
     orderBy: { startDate: "asc" },
     include: {
       _count: { select: { mustDos: true } },
+      reservations: { select: { status: true, dayPlanId: true, date: true } },
       dayPlans: {
         orderBy: { date: "asc" },
-        select: { id: true, parkId: true, notes: true, items: { select: { bookingStatus: true } } },
+        select: { id: true, date: true, parkId: true, notes: true, items: { select: { bookingStatus: true } } },
       },
     },
   });
@@ -37,6 +38,9 @@ export default async function TripsPage() {
   const summaries: TripSummary[] = trips.map((trip) => {
     const hotelName = trip.customHotelName || (trip.hotelId ? names.get(trip.hotelId) ?? null : null);
     const firstParkName = names.get(trip.dayPlans.find((day) => day.parkId)?.parkId ?? "");
+    const dayIdByDate = new Map(trip.dayPlans.map((day) => [format(day.date, "yyyy-MM-dd"), day.id]));
+    const reservations = trip.reservations.map((reservation) => ({ status: reservation.status, dayPlanId: reservation.dayPlanId ?? dayIdByDate.get(format(reservation.date, "yyyy-MM-dd")) ?? null }));
+    const reservationDayIds = new Set(reservations.map((reservation) => reservation.dayPlanId).filter(Boolean));
     return {
       id: trip.id,
       name: trip.name,
@@ -48,9 +52,9 @@ export default async function TripsPage() {
       themeId: resolveDayTheme({ parkName: firstParkName, hotelName }).id,
       dayThemes: trip.dayPlans.map((day) => {
         const parkName = day.parkId ? names.get(day.parkId) : null;
-        return { color: themeAccent(resolveDayTheme({ parkName, hotelName })), title: parkName || hotelName || "Open day", open: !day.parkId && !day.notes && day.items.length === 0 };
+        return { color: themeAccent(resolveDayTheme({ parkName, hotelName })), title: parkName || hotelName || "Open day", open: !day.parkId && !day.notes && day.items.length === 0 && !reservationDayIds.has(day.id) };
       }),
-      progress: calculateTripProgress({ hotelId: trip.hotelId ?? trip.customHotelName, budgetCents: trip.budgetCents, hasPartyProfile: Boolean(trip.partyProfile), mustDoCount: trip._count.mustDos, days: trip.dayPlans }),
+      progress: calculateTripProgress({ hotelId: trip.hotelId ?? trip.customHotelName, budgetCents: trip.budgetCents, hasPartyProfile: Boolean(trip.partyProfile), mustDoCount: trip._count.mustDos, days: trip.dayPlans, reservations }),
     };
   });
 

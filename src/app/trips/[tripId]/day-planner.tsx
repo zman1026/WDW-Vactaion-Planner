@@ -1,26 +1,29 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { FormEvent, useEffect, useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonStyles } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
 import { applyStarterTemplate, assignPark, assignSecondaryPark, clearDay, copyDay, removeDayPlanItem, reorderDayPlanItem, saveDayPlanItem } from "./actions";
 import { AiSuggestions } from "./ai-suggestions";
+import type { ReservationSummary } from "./reservation-center";
 import { TimingHelper } from "./timing-helper";
 
 type Park = { id: string; name: string };
 type PlanItem = { id: string; entityId: string; entityType: string; title: string; timingType: string; timeOfDay: string | null; startTime: string | null; endTime: string | null; estimatedCostCents: number | null; notes: string | null; bookingStatus: string; confirmationNumber: string | null; partySizeOverride: number | null; backupNote: string | null; paidExtraType: string | null };
 type SearchEntity = { id: string; name: string; entityType: string };
 type PickType = "ATTRACTION" | "RESTAURANT" | "SHOW" | "EXPERIENCE";
-type EditorState = PlanItem | PickType | null;
+type EditorState = PlanItem | PickType | "CHOOSE" | null;
+type TimelineEntry = { kind: "plan"; item: PlanItem; index: number } | { kind: "reservation"; item: ReservationSummary };
 
-export function DayPlanner({ tripId, dayPlanId, parkId, secondaryParkId, parks, items, days, emptyTitle, emptyDescription, coachingNote }: { tripId: string; dayPlanId: string; parkId: string | null; secondaryParkId: string | null; parks: Park[]; items: PlanItem[]; days: Array<{ id: string; label: string }>; emptyTitle: string; emptyDescription: string; coachingNote?: string | null }) {
+export function DayPlanner({ tripId, dayPlanId, parkId, secondaryParkId, parks, items, reservations, days, emptyTitle, emptyDescription, coachingNote, initialEditorItemId }: { tripId: string; dayPlanId: string; parkId: string | null; secondaryParkId: string | null; parks: Park[]; items: PlanItem[]; reservations: ReservationSummary[]; days: Array<{ id: string; label: string }>; emptyTitle: string; emptyDescription: string; coachingNote?: string | null; initialEditorItemId?: string }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [editor, setEditor] = useState<EditorState>(null);
+  const [editor, setEditor] = useState<EditorState>(items.find((item) => item.id === initialEditorItemId) ?? null);
   const [error, setError] = useState<string | null>(null);
   const [copyTarget, setCopyTarget] = useState("");
   const primaryParkName = parks.find((park) => park.id === parkId)?.name;
@@ -33,22 +36,38 @@ export function DayPlanner({ tripId, dayPlanId, parkId, secondaryParkId, parks, 
     });
   }
 
-  const bookedCount = items.filter((item) => item.bookingStatus === "BOOKED").length;
+  const totalCount = items.length + reservations.length;
+  const bookedCount = items.filter((item) => item.bookingStatus === "BOOKED").length + reservations.filter((item) => item.status === "CONFIRMED").length;
+  const timingItems = [...items, ...reservations.map((item) => ({ id: `reservation-${item.id}`, entityId: `reservation-${item.id}`, title: item.title, timingType: item.startTime ? "EXACT" : "FLEXIBLE", startTime: item.startTime, endTime: item.endTime }))];
 
   return <div className="space-y-4">
     <section className="day-accent-border rounded-card border bg-white/55 p-3 shadow-sm sm:p-4" aria-label="Day planning controls">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted">This day</p><p className="mt-0.5 truncate font-semibold text-primary">{primaryParkName || "Resort day / no park"}{secondaryParkId ? " · Park hopper" : ""}</p></div><Button type="button" size="sm" onClick={() => setEditor("ATTRACTION")} className="day-primary shadow-sm">+ Add something</Button></div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted">This day</p><p className="mt-0.5 truncate font-semibold text-primary">{primaryParkName || "Resort day / no park"}{secondaryParkId ? " · Park hopper" : ""}</p></div><Button type="button" size="sm" onClick={() => setEditor("CHOOSE")} className="day-primary shadow-sm">+ Add to this day</Button></div>
       <details className="mt-3 border-t border-[rgb(var(--day-accent)/.15)] pt-3" open={!parkId}><summary className="cursor-pointer text-xs font-bold text-[rgb(var(--day-accent-deep))]">{parkId ? "Change park or add a hopper park" : "Choose a park for this day"}</summary><div className="mt-4 grid gap-4 sm:grid-cols-2"><Field label="Primary park" hint="Sets the day theme and filters the offering picker."><Select value={parkId ?? ""} disabled={isPending} onChange={(event) => run(() => assignPark({ dayPlanId, parkId: event.target.value || null }))}><option value="">Rest day / no park</option>{parks.map((park) => <option key={park.id} value={park.id}>{park.name}</option>)}</Select></Field><Field label="Also visiting" optional hint="Adds hopper context while keeping the primary park theme."><Select value={secondaryParkId ?? ""} disabled={isPending || !parkId} onChange={(event) => run(() => assignSecondaryPark({ dayPlanId, secondaryParkId: event.target.value || null }))}><option value="">No second park</option>{parks.filter((park) => park.id !== parkId).map((park) => <option key={park.id} value={park.id}>{park.name}</option>)}</Select></Field></div></details>
     </section>
 
-    {items.length > 0 && <p className="rounded-control border border-[rgb(var(--day-accent)/.15)] bg-white/35 px-3 py-2 text-xs font-semibold text-muted" aria-label="Day plan summary">{items.length} plan{items.length === 1 ? "" : "s"} for this day{bookedCount ? ` · ${bookedCount} booked` : ""}</p>}
+    {totalCount > 0 && <p className="rounded-control border border-[rgb(var(--day-accent)/.15)] bg-white/35 px-3 py-2 text-xs font-semibold text-muted" aria-label="Day plan summary">{totalCount} thing{totalCount === 1 ? "" : "s"} on this day{bookedCount ? ` · ${bookedCount} confirmed` : ""}</p>}
 
-    {items.length === 0 ? <div className="space-y-3"><EmptyState compact title={emptyTitle} description={emptyDescription} className="day-accent-border bg-white/55" icon={<DayPathIcon />} />{parkId && <Button type="button" variant="secondary" disabled={isPending} onClick={() => run(() => applyStarterTemplate({ dayPlanId }))} className="w-full border-[rgb(var(--day-accent)/.25)] bg-white/55">Add a gentle starter plan</Button>}</div> : <div className="space-y-4">
-      {timelineBands(items).map((band) => band.entries.length > 0 && <section key={band.label}>
+    {totalCount === 0 ? <div className="space-y-3"><EmptyState compact title={emptyTitle} description={emptyDescription} className="day-accent-border bg-white/55" icon={<DayPathIcon />} />{parkId && <Button type="button" variant="secondary" disabled={isPending} onClick={() => run(() => applyStarterTemplate({ dayPlanId }))} className="w-full border-[rgb(var(--day-accent)/.25)] bg-white/55">Add a gentle starter plan</Button>}</div> : <div className="space-y-4">
+      {timelineBands(items, reservations).map((band) => band.entries.length > 0 && <section key={band.label}>
         <div className="mb-2 flex items-center gap-2"><span className="day-accent-bg size-2 rounded-full" /><h3 className="font-display text-base font-semibold text-primary">{band.label}</h3><span className="text-[10px] text-muted">{band.range}</span></div>
-        <ol className="relative ml-1 border-l border-[rgb(var(--day-accent)/.24)] pl-5 sm:pl-7">{band.entries.map(({ item, index }) => {
+        <ol className="relative ml-1 border-l border-[rgb(var(--day-accent)/.24)] pl-5 sm:pl-7">{band.entries.map((entry) => {
+          if (entry.kind === "reservation") {
+            const item = entry.item;
+            return <li key={`reservation-${item.id}`} className="relative pb-3 last:pb-0">
+              <span className="absolute -left-[1.62rem] top-5 grid size-3 place-items-center rounded-full border-2 border-surface bg-gold sm:-left-[2.12rem]" />
+              <article className="group rounded-control border border-gold/25 bg-sand/15 p-3 transition hover:shadow-card">
+                <div className="grid gap-2 sm:grid-cols-[7rem_minmax(0,1fr)_auto] sm:items-start">
+                  <p className="day-accent-text pt-0.5 text-xs font-bold">{item.startTime ? clock(item.startTime) : "Time not set"}</p>
+                  <div className="min-w-0"><div className="flex flex-wrap items-center gap-1.5"><p className="font-semibold text-primary">{item.title}</p><Badge className="border-gold/25 bg-white/60 text-gold">{reservationCategoryLabel(item.category)}</Badge><Badge tone={item.status === "CONFIRMED" ? "success" : "warning"}>{item.status === "CONFIRMED" ? "Confirmed" : item.status === "PENDING" ? "Needs action" : "Wish list"}</Badge></div><div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">{item.location && <span>{item.location}</span>}{item.confirmationNumber && <span className="font-semibold text-primary">Confirmation {item.confirmationNumber}</span>}{item.partySize && <span>Party of {item.partySize}</span>}{item.costCents !== null && <span>Est. ${(item.costCents / 100).toFixed(2)}</span>}</div>{item.notes && <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-muted">{item.notes}</p>}</div>
+                  <Link href={`/trips/${tripId}?view=reservations&reservation=${item.id}`} className={buttonStyles({ variant: "ghost", size: "sm", className: "shrink-0" })}>Edit</Link>
+                </div>
+              </article>
+            </li>;
+          }
+          const { item, index } = entry;
           const presentation = itemPresentation(item);
-          return <li key={item.id} className="relative pb-3 last:pb-0">
+          return <li key={`plan-${item.id}`} className="relative pb-3 last:pb-0">
           <span className="day-accent-bg absolute -left-[1.62rem] top-5 size-3 rounded-full border-2 border-surface sm:-left-[2.12rem]" />
           <article className={`group day-item rounded-control border p-3 transition hover:shadow-card ${presentation.className}`}>
             <div className="grid gap-2 sm:grid-cols-[7rem_minmax(0,1fr)_auto] sm:items-start">
@@ -58,25 +77,41 @@ export function DayPlanner({ tripId, dayPlanId, parkId, secondaryParkId, parks, 
           </article>
         </li>;})}</ol>
       </section>)}
+      {items.length === 0 && parkId && <Button type="button" variant="secondary" disabled={isPending} onClick={() => run(() => applyStarterTemplate({ dayPlanId }))} className="w-full border-[rgb(var(--day-accent)/.25)] bg-white/55">Add a gentle starter plan</Button>}
     </div>}
 
     {error && <p role="alert" className="rounded-control border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger">{error}</p>}
 
-    <details className="rounded-control border border-border bg-white/35 p-3"><summary className="cursor-pointer text-xs font-semibold text-primary">Copy or clear this day</summary><div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+    {items.length > 0 && <details className="rounded-control border border-border bg-white/35 p-3"><summary className="cursor-pointer text-xs font-semibold text-primary">Copy or clear planned activities</summary><div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
       <Select value={copyTarget} onChange={(event) => setCopyTarget(event.target.value)} disabled={isPending || items.length === 0} className="min-w-0 flex-1"><option value="">Copy this day to…</option>{days.filter((day) => day.id !== dayPlanId).map((day) => <option key={day.id} value={day.id}>{day.label}</option>)}</Select>
       <Button type="button" variant="secondary" size="sm" disabled={isPending || !copyTarget || items.length === 0} onClick={() => run(() => copyDay({ sourceDayPlanId: dayPlanId, targetDayPlanId: copyTarget }), () => setCopyTarget(""))}>Copy items</Button>
-      <Button type="button" variant="danger" size="sm" disabled={isPending || items.length === 0} onClick={() => { if (window.confirm("Remove every itinerary item from this day? The park assignment will remain.")) run(() => clearDay({ dayPlanId })); }}>Clear day</Button>
-    </div></details>
+      <Button type="button" variant="danger" size="sm" disabled={isPending || items.length === 0} onClick={() => { if (window.confirm("Remove every planned activity from this day? Reservations will stay in place.")) run(() => clearDay({ dayPlanId })); }}>Clear activities</Button>
+    </div></details>}
 
-    <details className="rounded-control border border-border bg-white/35 p-3"><summary className="cursor-pointer text-xs font-semibold text-primary">Planning help, optional</summary><div className="mt-4 grid gap-5 sm:grid-cols-2"><section><h3 className="text-sm font-semibold text-primary">Check the timing</h3><div className="mt-2"><TimingHelper parkId={parkId} items={items} coachingNote={coachingNote} /></div></section><section className="border-t border-border pt-4 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0"><h3 className="text-sm font-semibold text-primary">Build a suggested day</h3><div className="mt-2"><AiSuggestions tripId={tripId} dayPlanId={dayPlanId} hasPark={Boolean(parkId)} disabled={isPending} onApply={(suggestions) => run(async () => { for (const item of suggestions) await saveDayPlanItem({ dayPlanId, entityId: item.entityId, entityType: item.entityType, title: item.title, timingType: "EXACT", timeOfDay: "", startTime: item.startTime, endTime: item.endTime, estimatedCost: (item.estimatedCostCents / 100).toFixed(2), notes: item.notes, bookingStatus: item.entityType === "RESTAURANT" ? "WISHLIST" : "NONE", confirmationNumber: "", partySizeOverride: "", backupNote: "", paidExtraType: "" }); })} /></div></section></div></details>
-    <Modal open={Boolean(editor)} title={typeof editor === "string" ? "Add to this day" : "Edit plan item"} onClose={() => setEditor(null)}>{editor && <ItemEditor dayPlanId={dayPlanId} parkId={parkId} item={typeof editor === "string" ? undefined : editor} initialType={typeof editor === "string" ? editor : undefined} isPending={isPending} onSave={(input) => run(() => saveDayPlanItem(input), () => setEditor(null))} />}</Modal>
+    <details className="rounded-control border border-border bg-white/35 p-3"><summary className="cursor-pointer text-xs font-semibold text-primary">Planning help, optional</summary><div className="mt-4 grid gap-5 sm:grid-cols-2"><section><h3 className="text-sm font-semibold text-primary">Check the timing</h3><div className="mt-2"><TimingHelper parkId={parkId} items={timingItems} coachingNote={coachingNote} /></div></section><section className="border-t border-border pt-4 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0"><h3 className="text-sm font-semibold text-primary">Build a suggested day</h3><div className="mt-2"><AiSuggestions tripId={tripId} dayPlanId={dayPlanId} hasPark={Boolean(parkId)} disabled={isPending} onApply={(suggestions) => run(async () => { for (const item of suggestions) await saveDayPlanItem({ dayPlanId, entityId: item.entityId, entityType: item.entityType, title: item.title, timingType: "EXACT", timeOfDay: "", startTime: item.startTime, endTime: item.endTime, estimatedCost: (item.estimatedCostCents / 100).toFixed(2), notes: item.notes, bookingStatus: item.entityType === "RESTAURANT" ? "WISHLIST" : "NONE", confirmationNumber: "", partySizeOverride: "", backupNote: "", paidExtraType: "" }); })} /></div></section></div></details>
+    <Modal open={Boolean(editor)} title={editor === "CHOOSE" ? "Add to this day" : typeof editor === "string" ? "Plan an activity" : "Edit plan item"} onClose={() => setEditor(null)}>{editor === "CHOOSE" ? <AddChoice tripId={tripId} dayPlanId={dayPlanId} onPlan={() => setEditor("ATTRACTION")} /> : editor && <ItemEditor dayPlanId={dayPlanId} parkId={parkId} item={typeof editor === "string" ? undefined : editor} initialType={typeof editor === "string" ? editor : undefined} isPending={isPending} onSave={(input) => run(() => saveDayPlanItem(input), () => setEditor(null))} />}</Modal>
   </div>;
 }
 
 function SmallButton({ label, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) { return <button type="button" aria-label={label} title={label} {...props} className={`rounded-md px-2 py-1 text-xs font-semibold text-muted hover:bg-sand/30 hover:text-primary disabled:opacity-35 ${className ?? ""}`} />; }
 
+function AddChoice({ tripId, dayPlanId, onPlan }: { tripId: string; dayPlanId: string; onPlan: () => void }) {
+  return <div className="grid gap-3 sm:grid-cols-2">
+    <button type="button" onClick={onPlan} className="rounded-card border border-border bg-surface p-5 text-left transition hover:border-gold hover:bg-sand/10 focus:border-gold focus:outline-none focus:ring-4 focus:ring-gold/15">
+      <span className="grid size-10 place-items-center rounded-full bg-parchment text-xl text-gold">☆</span>
+      <span className="mt-3 block font-display text-xl font-semibold text-primary">Plan an activity</span>
+      <span className="mt-1 block text-sm leading-relaxed text-muted">Add a ride, restaurant idea, show, break, or experience.</span>
+    </button>
+    <Link href={`/trips/${tripId}?view=reservations&new=1&day=${dayPlanId}`} className="rounded-card border border-border bg-surface p-5 text-left transition hover:border-gold hover:bg-sand/10 focus:border-gold focus:outline-none focus:ring-4 focus:ring-gold/15">
+      <span className="grid size-10 place-items-center rounded-full bg-parchment text-xl text-gold">◇</span>
+      <span className="mt-3 block font-display text-xl font-semibold text-primary">Add a reservation</span>
+      <span className="mt-1 block text-sm leading-relaxed text-muted">Save dining, travel, tickets, or another confirmed booking.</span>
+    </Link>
+  </div>;
+}
+
 function timingDescription(item: PlanItem) {
-  if (item.timingType === "EXACT" && item.startTime) return `Fixed · ${item.startTime}${item.endTime ? `–${item.endTime}` : ""}`;
+  if (item.timingType === "EXACT" && item.startTime) return `${clock(item.startTime)}${item.endTime ? `–${clock(item.endTime)}` : ""}`;
   if (item.timingType === "TIME_OF_DAY" && item.timeOfDay) return item.timeOfDay.charAt(0) + item.timeOfDay.slice(1).toLowerCase();
   return "Flexible / anytime";
 }
@@ -95,14 +130,56 @@ function DayPathIcon() {
   return <svg viewBox="0 0 24 24" className="size-7 fill-none stroke-current stroke-[1.6]" aria-hidden="true"><path d="M5 19c3-1 3-5 6-6s4 2 7 0c2-1 2-4 0-6" /><circle cx="5" cy="19" r="2" /><circle cx="18" cy="6" r="2" /></svg>;
 }
 
-function timelineBands(items: PlanItem[]) {
-  const bands = [
-    { label: "Morning", range: "Before noon", dot: "bg-park-mk", match: (item: PlanItem) => item.timeOfDay === "MORNING" || (item.timingType === "EXACT" && Boolean(item.startTime && item.startTime < "12:00")) },
-    { label: "Afternoon", range: "Noon to 5 PM", dot: "bg-park-epcot", match: (item: PlanItem) => item.timeOfDay === "AFTERNOON" || (item.timingType === "EXACT" && Boolean(item.startTime && item.startTime >= "12:00" && item.startTime < "17:00")) },
-    { label: "Evening", range: "After 5 PM", dot: "bg-park-hs", match: (item: PlanItem) => item.timeOfDay === "EVENING" || (item.timingType === "EXACT" && Boolean(item.startTime && item.startTime >= "17:00")) },
-    { label: "Flexible", range: "Anytime", dot: "bg-park-rest", match: (item: PlanItem) => item.timingType === "FLEXIBLE" || (item.timingType !== "EXACT" && !item.timeOfDay) },
+function timelineBands(items: PlanItem[], reservations: ReservationSummary[]) {
+  const entries: TimelineEntry[] = [
+    ...items.map((item, index) => ({ kind: "plan" as const, item, index })),
+    ...reservations.map((item) => ({ kind: "reservation" as const, item })),
   ];
-  return bands.map((band) => ({ ...band, entries: items.map((item, index) => ({ item, index })).filter(({ item }) => band.match(item)) }));
+  const bands = [
+    { label: "Morning", range: "Before noon" },
+    { label: "Afternoon", range: "Noon to 5 PM" },
+    { label: "Evening", range: "After 5 PM" },
+    { label: "Flexible", range: "Anytime" },
+  ];
+  return bands.map((band) => ({ ...band, entries: entries.filter((entry) => entryBand(entry) === band.label).sort((a, b) => entrySortKey(a) - entrySortKey(b)) }));
+}
+
+function entryBand(entry: TimelineEntry) {
+  if (entry.kind === "plan" && entry.item.timingType !== "EXACT") {
+    if (entry.item.timeOfDay === "MORNING") return "Morning";
+    if (entry.item.timeOfDay === "AFTERNOON") return "Afternoon";
+    if (entry.item.timeOfDay === "EVENING") return "Evening";
+    return "Flexible";
+  }
+  const startTime = entry.item.startTime;
+  if (!startTime) return "Flexible";
+  if (startTime < "12:00") return "Morning";
+  if (startTime < "17:00") return "Afternoon";
+  return "Evening";
+}
+
+function entrySortKey(entry: TimelineEntry) {
+  const startTime = entry.item.startTime;
+  if (startTime) {
+    const [hour, minute] = startTime.split(":").map(Number);
+    return hour * 60 + minute;
+  }
+  if (entry.kind === "plan") {
+    if (entry.item.timeOfDay === "MORNING") return 8 * 60 + entry.index;
+    if (entry.item.timeOfDay === "AFTERNOON") return 13 * 60 + entry.index;
+    if (entry.item.timeOfDay === "EVENING") return 18 * 60 + entry.index;
+    return 24 * 60 + entry.index;
+  }
+  return 25 * 60;
+}
+
+function reservationCategoryLabel(value: string) {
+  return ({ DINING: "Dining", HOTEL: "Hotel", FLIGHT: "Flight", TRANSPORT: "Transportation", TICKET: "Tickets", EVENT: "Special event", OTHER: "Reservation" } as Record<string, string>)[value] ?? "Reservation";
+}
+
+function clock(value: string) {
+  const [hour, minute] = value.split(":").map(Number);
+  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(2000, 0, 1, hour, minute));
 }
 
 function ItemEditor({ dayPlanId, parkId, item, initialType, isPending, onSave }: { dayPlanId: string; parkId: string | null; item?: PlanItem; initialType?: PickType; isPending: boolean; onSave: (input: Parameters<typeof saveDayPlanItem>[0]) => void }) {
