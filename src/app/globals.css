@@ -62,7 +62,8 @@ h1, h2, .font-display { font-family: var(--font-display); }
 }
 
 .planner-masthead,
-.overview-hero {
+.overview-hero,
+.trip-feature {
   background-image:
     radial-gradient(circle at 85% -20%, rgb(95 165 197 / .38), transparent 24rem),
     radial-gradient(circle at 18% 140%, rgb(var(--color-gold) / .24), transparent 28rem),

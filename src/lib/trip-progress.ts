@@ -61,11 +61,11 @@ export function calculateTripProgress(input: TripProgressInput): TripProgress {
   const firstEmptyParkDay = input.days.find((day) => day.parkId && itemCount(day) === 0);
   let nextAction: TripProgress["nextAction"];
   if (assignedDays === 0) {
-    nextAction = { title: "Build your day framework", description: "Choose a park or mark out a relaxed resort day.", dayId: input.days[0]?.id };
+    nextAction = { title: "Choose a plan for the first day", description: "Pick a park or make it a relaxed resort day.", dayId: input.days[0]?.id };
   } else if (firstUnframed) {
-    nextAction = { title: "Shape the next open day", description: "Give every day a park, a note, or a simple plan.", dayId: firstUnframed.id };
+    nextAction = { title: "Plan the next open day", description: "Choose a park, a resort day, or add a simple note.", dayId: firstUnframed.id };
   } else if (input.mustDoCount === 0) {
-    nextAction = { title: "Capture the family must-dos", description: "Add the moments nobody wants to miss.", dayId: input.days[0]?.id };
+    nextAction = { title: "Add your family’s must-dos", description: "List the moments nobody wants to miss.", dayId: input.days[0]?.id };
   } else if (firstEmptyParkDay) {
     nextAction = { title: "Add a plan to a park day", description: "A few anchors are enough—leave room to be flexible.", dayId: firstEmptyParkDay.id };
   } else if (openReservations > 0) {

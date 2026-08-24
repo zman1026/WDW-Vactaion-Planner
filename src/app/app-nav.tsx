@@ -10,7 +10,7 @@ type AppNavProps = { signedIn: boolean; userName?: string | null; authConfigured
 const links = [
   { href: "/", label: "Home", icon: HomeIcon },
   { href: "/trips", label: "My trips", icon: TripsIcon },
-  { href: "/explore", label: "Explore", icon: ExploreIcon },
+  { href: "/explore", label: "Park guide", icon: ExploreIcon },
 ];
 
 export function AppNav({ signedIn, userName, authConfigured }: AppNavProps) {
