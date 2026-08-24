@@ -12,7 +12,37 @@ export const tripIdSchema = z.object({ tripId: z.string().cuid() });
 
 export const hotelAssignmentSchema = tripIdSchema.extend({
   hotelId: z.string().trim().nullable(),
+  customHotelName: z.string().trim().max(120, "Hotel name must be 120 characters or fewer.").nullable().optional(),
+}).refine((value) => !(value.hotelId && value.customHotelName), { message: "Choose a directory hotel or enter a custom hotel, not both." });
+
+const timeSchema = z.union([z.literal(""), z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use a valid time.")]);
+
+export const reservationSchema = tripIdSchema.extend({
+  id: z.string().cuid().optional(),
+  dayPlanId: z.union([z.literal(""), z.string().cuid()]),
+  category: z.enum(["HOTEL", "DINING", "FLIGHT", "TRANSPORT", "TICKET", "EVENT", "OTHER"]),
+  title: z.string().trim().min(1, "Give this reservation a name.").max(140),
+  reservationDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a valid date."),
+  startTime: timeSchema,
+  endTime: timeSchema,
+  status: z.enum(["CONFIRMED", "PENDING", "WISHLIST"]),
+  confirmationNumber: z.string().trim().max(120),
+  location: z.string().trim().max(200),
+  notes: z.string().trim().max(1_000),
+  estimatedCost: z.union([z.literal(""), z.coerce.number().min(0).max(1_000_000)]),
+  partySize: z.union([z.literal(""), z.coerce.number().int().min(1).max(50)]),
+}).refine((value) => !value.endTime || !value.startTime || value.endTime >= value.startTime, { path: ["endTime"], message: "End time must be after the start time." });
+
+export const companionSchema = tripIdSchema.extend({
+  id: z.string().cuid().optional(),
+  name: z.string().trim().min(1, "Enter a name.").max(100),
+  email: z.union([z.literal(""), z.string().trim().email("Enter a valid email address.").max(200)]),
+  role: z.enum(["CO_PLANNER", "TRAVELER", "CHILD"]),
+  rsvp: z.enum(["GOING", "INVITED", "MAYBE"]),
 });
+
+export const reservationMutationSchema = z.object({ reservationId: z.string().cuid() });
+export const companionMutationSchema = z.object({ companionId: z.string().cuid() });
 
 export const partyProfileSchema = tripIdSchema.extend({
   partySize: z.coerce.number().int().min(1, "Party size must be at least 1.").max(50, "Party size must be 50 or fewer."),

@@ -12,13 +12,13 @@ export const metadata: Metadata = { title: "Shared trip | WDW Planner", robots: 
 
 export default async function SharedTripPage({ params, searchParams }: { params: Promise<{ tripId: string }>; searchParams: Promise<{ costs?: string }> }) {
   const [{ tripId }, query] = await Promise.all([params, searchParams]);
-  const trip = await prisma.trip.findUnique({ where: { id: tripId }, include: { dayPlans: { orderBy: { date: "asc" }, include: { items: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } } } } });
+  const trip = await prisma.trip.findUnique({ where: { id: tripId }, include: { companions: { orderBy: { createdAt: "asc" } }, reservations: { orderBy: [{ date: "asc" }, { startTime: "asc" }] }, dayPlans: { orderBy: { date: "asc" }, include: { items: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } } } } });
   if (!trip) notFound();
 
   const entityIds = [...trip.dayPlans.flatMap((day) => [day.parkId, day.secondaryParkId].filter((id): id is string => Boolean(id))), ...(trip.hotelId ? [trip.hotelId] : [])];
   const entities = await prisma.parkEntity.findMany({ where: { id: { in: entityIds } }, select: { id: true, name: true } });
   const names = new Map(entities.map((entity) => [entity.id, entity.name]));
-  const hotelName = trip.hotelId ? names.get(trip.hotelId) : null;
+  const hotelName = trip.customHotelName || (trip.hotelId ? names.get(trip.hotelId) : null);
   const partySummary = partyProfileSummary(normalizePartyProfile(trip.partyProfile));
   const showCosts = query.costs !== "hide";
 
@@ -32,6 +32,8 @@ export default async function SharedTripPage({ params, searchParams }: { params:
       {trip.notes && <div className="rounded-control border-l-4 border-l-gold bg-sand/15 p-5"><p className="text-xs font-bold uppercase tracking-wider text-gold">A note for the family</p><p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{trip.notes}</p></div>}
       {trip.partyProfile != null && <div className="rounded-control border border-border bg-surface p-5"><p className="text-xs font-bold uppercase tracking-wider text-gold">Travel party</p><p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-muted">{partySummary}</p></div>}
     </section>}
+
+    {(trip.reservations.length > 0 || trip.companions.length > 0) && <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]"><div className="rounded-card border border-border bg-surface p-5 shadow-card"><p className="text-xs font-bold uppercase tracking-wider text-gold">Key reservations</p><div className="mt-3 divide-y divide-border">{trip.reservations.filter((item) => item.status === "CONFIRMED").map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0"><div><p className="font-semibold text-primary">{item.title}</p><p className="mt-0.5 text-xs text-muted">{format(item.date, "EEE, MMM d")}{item.startTime ? ` · ${item.startTime}` : ""}{item.location ? ` · ${item.location}` : ""}</p></div>{item.confirmationNumber && <span className="rounded-full bg-parchment px-2.5 py-1 font-mono text-[11px] font-semibold">{item.confirmationNumber}</span>}</div>)}</div></div>{trip.companions.length > 0 && <div className="rounded-card border border-border bg-surface p-5 shadow-card"><p className="text-xs font-bold uppercase tracking-wider text-gold">Travel party</p><p className="mt-2 font-display text-xl font-semibold text-primary">{trip.companions.length + 1} travelers</p><p className="mt-2 text-sm leading-relaxed text-muted">You, {trip.companions.map((person) => person.name).join(", ")}</p></div>}</section>}
 
     <div className="no-print flex justify-end"><Link href={`/share/${trip.id}${showCosts ? "?costs=hide" : ""}`} className="text-xs font-semibold text-primary underline decoration-gold/50 underline-offset-4">{showCosts ? "Hide costs for family sharing" : "Show estimated costs"}</Link></div>
     <ol className="space-y-7">{trip.dayPlans.map((day, index) => {

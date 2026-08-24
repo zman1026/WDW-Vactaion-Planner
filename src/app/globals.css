@@ -49,6 +49,28 @@ h1, h2, .font-display { font-family: var(--font-display); }
   .no-print { display: none !important; }
 }
 
+.magic-dust {
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 11% 26%, rgb(255 255 255 / .9) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 28% 68%, rgb(var(--color-sand) / .9) 0 1.4px, transparent 2px),
+    radial-gradient(circle at 56% 18%, rgb(255 255 255 / .7) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 72% 74%, rgb(var(--color-sand) / .7) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 91% 32%, rgb(255 255 255 / .8) 0 1.2px, transparent 1.8px);
+  background-size: 160px 140px, 210px 190px, 180px 160px, 230px 180px, 200px 170px;
+  mask-image: linear-gradient(115deg, black, transparent 72%);
+}
+
+.planner-masthead,
+.overview-hero {
+  background-image:
+    radial-gradient(circle at 85% -20%, rgb(95 165 197 / .38), transparent 24rem),
+    radial-gradient(circle at 18% 140%, rgb(var(--color-gold) / .24), transparent 28rem),
+    linear-gradient(135deg, rgb(8 25 49), rgb(var(--color-primary)) 55%, rgb(20 47 76));
+}
+
+.mobile-dock { bottom: max(.75rem, env(safe-area-inset-bottom)); }
+
 /* Day themes are intentionally scoped to the itinerary canvas. The app shell
    remains calm parchment and navy while each selected day carries its identity. */
 .day-theme {
@@ -79,7 +101,8 @@ h1, h2, .font-display { font-family: var(--font-display); }
   overflow: hidden;
   border-color: rgb(var(--day-accent) / 0.22);
   background:
-    radial-gradient(circle at 88% 8%, rgb(var(--day-glow) / 0.24), transparent 17rem),
+    radial-gradient(circle at 88% 8%, rgb(var(--day-glow) / 0.32), transparent 17rem),
+    radial-gradient(circle at 4% 120%, rgb(var(--day-accent) / .1), transparent 18rem),
     linear-gradient(135deg, rgb(255 255 255 / 0.76), rgb(var(--day-wash) / 0.72));
 }
 .day-theme__hero::after {
@@ -87,12 +110,14 @@ h1, h2, .font-display { font-family: var(--font-display); }
   position: absolute;
   inset: 0;
   z-index: -1;
-  opacity: 0.28;
+  opacity: 0.36;
   pointer-events: none;
   background-image: radial-gradient(circle, rgb(var(--day-accent) / 0.24) 1px, transparent 1.5px);
   background-size: 24px 24px;
   mask-image: linear-gradient(to left, black, transparent 70%);
 }
+
+.day-theme__hero:hover::after { opacity: .48; }
 .day-theme[data-pattern="geometry"] .day-theme__hero::after { background-image: linear-gradient(30deg, transparent 48%, rgb(var(--day-accent) / .18) 49%, rgb(var(--day-accent) / .18) 51%, transparent 52%); background-size: 30px 52px; }
 .day-theme[data-pattern="stage"] .day-theme__hero::after { background-image: repeating-linear-gradient(112deg, transparent 0 28px, rgb(var(--day-accent) / .1) 29px 31px); }
 .day-theme[data-pattern="organic"] .day-theme__hero::after { background-image: radial-gradient(ellipse at center, transparent 52%, rgb(var(--day-accent) / .15) 54%, transparent 57%); background-size: 42px 29px; }
@@ -111,6 +136,12 @@ h1, h2, .font-display { font-family: var(--font-display); }
 .day-canvas-enter { animation: day-canvas-in 220ms ease both; }
 @keyframes day-canvas-in { from { opacity: .35; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .day-canvas-enter { animation: none; } }
+
+@media (max-width: 639px) {
+  body { padding-bottom: 5.25rem; }
+  .planner-masthead { border-radius: 1.15rem; }
+  .day-filmstrip { top: 61px; }
+}
 
 .share-day { --day-accent: 119 109 96; border-top: 5px solid rgb(var(--day-accent)); }
 @media print {

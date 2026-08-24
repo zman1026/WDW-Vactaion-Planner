@@ -2,8 +2,8 @@ import { clsx } from "clsx";
 import type { HTMLAttributes } from "react";
 import { parkThemeId } from "@/lib/day-themes";
 
-export function Badge({ className, ...props }: HTMLAttributes<HTMLSpanElement>) {
-  return <span className={clsx("inline-flex items-center rounded-full border border-border bg-parchment px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-muted", className)} {...props} />;
+export function Badge({ className, tone = "neutral", ...props }: HTMLAttributes<HTMLSpanElement> & { tone?: "neutral" | "success" | "warning" }) {
+  return <span className={clsx("inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider", tone === "neutral" && "border-border bg-parchment text-muted", tone === "success" && "border-success/20 bg-success/10 text-success", tone === "warning" && "border-warning/20 bg-warning/10 text-warning", className)} {...props} />;
 }
 
 export type ParkTone = "mk" | "epcot" | "hs" | "ak" | "rest";

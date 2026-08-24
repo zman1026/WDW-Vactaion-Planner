@@ -16,7 +16,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="en">
       <body className="min-h-screen antialiased">
-        <header className="sticky top-0 z-40 border-b border-border/80 bg-surface/95 shadow-[0_4px_24px_rgba(35,29,20,0.05)] backdrop-blur">
+        <header className="sticky top-0 z-40 border-b border-border/80 bg-surface/95 shadow-[0_4px_24px_rgba(35,29,20,0.05)] sm:backdrop-blur">
           <AppNav signedIn={Boolean(session)} userName={session?.user?.name ?? session?.user?.email} authConfigured={authConfiguration.isConfigured} />
         </header>
         <div role="main" className="mx-auto min-h-[70vh] max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">{children}</div>

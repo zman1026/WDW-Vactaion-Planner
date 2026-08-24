@@ -46,7 +46,7 @@ export default async function TripsPage() {
   const entities = await prisma.parkEntity.findMany({ where: { id: { in: entityIds } }, select: { id: true, name: true } });
   const names = new Map(entities.map((entity) => [entity.id, entity.name]));
   const summaries: TripSummary[] = trips.map((trip) => {
-    const hotelName = trip.hotelId ? names.get(trip.hotelId) ?? null : null;
+    const hotelName = trip.customHotelName || (trip.hotelId ? names.get(trip.hotelId) ?? null : null);
     const firstParkName = names.get(trip.dayPlans.find((day) => day.parkId)?.parkId ?? "");
     return {
       id: trip.id,
@@ -60,7 +60,7 @@ export default async function TripsPage() {
         const parkName = day.parkId ? names.get(day.parkId) : null;
         return { color: themeAccent(resolveDayTheme({ parkName, hotelName })), title: parkName || hotelName || "Open day", open: !day.parkId && !day.notes && day.items.length === 0 };
       }),
-      progress: calculateTripProgress({ hotelId: trip.hotelId, budgetCents: trip.budgetCents, hasPartyProfile: Boolean(trip.partyProfile), mustDoCount: trip._count.mustDos, days: trip.dayPlans }),
+      progress: calculateTripProgress({ hotelId: trip.hotelId ?? trip.customHotelName, budgetCents: trip.budgetCents, hasPartyProfile: Boolean(trip.partyProfile), mustDoCount: trip._count.mustDos, days: trip.dayPlans }),
     };
   });
 

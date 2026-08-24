@@ -32,12 +32,15 @@ model Trip {
   budgetCents Int?     // total budget in cents
   notes       String?
   partyProfile Json?
+  customHotelName String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   dayPlans DayPlan[]
   mustDos  MustDo[]
+  reservations Reservation[]
+  companions TripCompanion[]
   hotelId  String?   // optional link to a hotel entity
 
   @@index([userId])
@@ -55,9 +58,50 @@ model DayPlan {
 
   trip     Trip            @relation(fields: [tripId], references: [id], onDelete: Cascade)
   items    DayPlanItem[]
+  reservations Reservation[]
 
   @@index([tripId])
   @@unique([tripId, date])
+}
+
+model Reservation {
+  id                 String   @id @default(cuid())
+  tripId             String
+  dayPlanId          String?
+  category           String   // HOTEL | DINING | FLIGHT | TRANSPORT | TICKET | EVENT | OTHER
+  title              String
+  date               DateTime
+  startTime          String?
+  endTime            String?
+  status             String   @default("CONFIRMED") // CONFIRMED | PENDING | WISHLIST
+  confirmationNumber String?
+  location           String?
+  notes              String?
+  costCents          Int?
+  partySize          Int?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  trip    Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  dayPlan DayPlan? @relation(fields: [dayPlanId], references: [id], onDelete: SetNull)
+
+  @@index([tripId, date])
+  @@index([dayPlanId])
+}
+
+model TripCompanion {
+  id        String   @id @default(cuid())
+  tripId    String
+  name      String
+  email     String?
+  role      String   @default("TRAVELER") // CO_PLANNER | TRAVELER | CHILD
+  rsvp      String   @default("GOING") // GOING | INVITED | MAYBE
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
 }
 
 model DayPlanItem {

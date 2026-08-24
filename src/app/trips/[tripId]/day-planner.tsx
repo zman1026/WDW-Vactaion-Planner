@@ -14,11 +14,13 @@ import { TimingHelper } from "./timing-helper";
 type Park = { id: string; name: string };
 type PlanItem = { id: string; entityId: string; entityType: string; title: string; timingType: string; timeOfDay: string | null; startTime: string | null; endTime: string | null; estimatedCostCents: number | null; notes: string | null; bookingStatus: string; confirmationNumber: string | null; partySizeOverride: number | null; backupNote: string | null; paidExtraType: string | null };
 type SearchEntity = { id: string; name: string; entityType: string };
+type PickType = "ATTRACTION" | "RESTAURANT" | "SHOW" | "EXPERIENCE";
+type EditorState = PlanItem | PickType | null;
 
 export function DayPlanner({ tripId, dayPlanId, parkId, secondaryParkId, parks, items, days, emptyTitle, emptyDescription, coachingNote }: { tripId: string; dayPlanId: string; parkId: string | null; secondaryParkId: string | null; parks: Park[]; items: PlanItem[]; days: Array<{ id: string; label: string }>; emptyTitle: string; emptyDescription: string; coachingNote?: string | null }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [editor, setEditor] = useState<PlanItem | "new" | null>(null);
+  const [editor, setEditor] = useState<EditorState>(null);
   const [error, setError] = useState<string | null>(null);
   const [copyTarget, setCopyTarget] = useState("");
   const primaryParkName = parks.find((park) => park.id === parkId)?.name;
@@ -31,12 +33,17 @@ export function DayPlanner({ tripId, dayPlanId, parkId, secondaryParkId, parks, 
     });
   }
 
-  return <div className="space-y-3">
-    <details className="day-accent-border rounded-control border bg-white/45 p-3" open={!parkId}>
-      <summary className="cursor-pointer text-sm font-semibold text-primary">{primaryParkName ? `${primaryParkName} · Change` : "Assign a park"}{secondaryParkId ? " · Hopper" : ""}</summary>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2"><Field label="Primary park" hint="The day theme and offering picker follow this park."><Select value={parkId ?? ""} disabled={isPending} onChange={(event) => run(() => assignPark({ dayPlanId, parkId: event.target.value || null }))}><option value="">Rest day / no park</option>{parks.map((park) => <option key={park.id} value={park.id}>{park.name}</option>)}</Select></Field><Field label="Also visiting" optional hint="Adds a hopper badge; the primary park keeps the theme."><Select value={secondaryParkId ?? ""} disabled={isPending || !parkId} onChange={(event) => run(() => assignSecondaryPark({ dayPlanId, secondaryParkId: event.target.value || null }))}><option value="">No second park</option>{parks.filter((park) => park.id !== parkId).map((park) => <option key={park.id} value={park.id}>{park.name}</option>)}</Select></Field></div>
-    </details>
-    <Button type="button" onClick={() => setEditor("new")} className="day-primary sticky bottom-3 z-20 w-full shadow-lift sm:static sm:w-auto">Add item</Button>
+  const exactCount = items.filter((item) => item.timingType === "EXACT").length;
+  const diningCount = items.filter((item) => item.entityType === "RESTAURANT").length;
+  const bookedCount = items.filter((item) => item.bookingStatus === "BOOKED").length;
+
+  return <div className="space-y-4">
+    <section className="day-accent-border rounded-card border bg-white/55 p-3 shadow-sm sm:p-4" aria-label="Day planning controls">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted">Today’s setting</p><p className="mt-0.5 truncate font-semibold text-primary">{primaryParkName || "Resort day / no park"}{secondaryParkId ? " · Park hopper" : ""}</p></div><div className="flex flex-wrap gap-2"><Button type="button" size="sm" onClick={() => setEditor("ATTRACTION")} className="day-primary shadow-sm">+ Add a plan</Button>{parkId && <><Button type="button" size="sm" variant="secondary" onClick={() => setEditor("RESTAURANT")} className="bg-white/70">Dining</Button><Button type="button" size="sm" variant="secondary" onClick={() => setEditor("SHOW")} className="bg-white/70">Shows</Button></>}</div></div>
+      <details className="mt-3 border-t border-[rgb(var(--day-accent)/.15)] pt-3" open={!parkId}><summary className="cursor-pointer text-xs font-bold text-[rgb(var(--day-accent-deep))]">{parkId ? "Change park or add a hopper park" : "Choose a park for this day"}</summary><div className="mt-4 grid gap-4 sm:grid-cols-2"><Field label="Primary park" hint="Sets the day theme and filters the offering picker."><Select value={parkId ?? ""} disabled={isPending} onChange={(event) => run(() => assignPark({ dayPlanId, parkId: event.target.value || null }))}><option value="">Rest day / no park</option>{parks.map((park) => <option key={park.id} value={park.id}>{park.name}</option>)}</Select></Field><Field label="Also visiting" optional hint="Adds hopper context while keeping the primary park theme."><Select value={secondaryParkId ?? ""} disabled={isPending || !parkId} onChange={(event) => run(() => assignSecondaryPark({ dayPlanId, secondaryParkId: event.target.value || null }))}><option value="">No second park</option>{parks.filter((park) => park.id !== parkId).map((park) => <option key={park.id} value={park.id}>{park.name}</option>)}</Select></Field></div></details>
+    </section>
+
+    {items.length > 0 && <div className="grid grid-cols-4 gap-2 rounded-control border border-[rgb(var(--day-accent)/.15)] bg-white/35 p-2" aria-label="Day plan summary"><DayStat label="Plans" value={items.length} /><DayStat label="Fixed" value={exactCount} /><DayStat label="Dining" value={diningCount} /><DayStat label="Booked" value={bookedCount} /></div>}
 
     {items.length === 0 ? <div className="space-y-3"><EmptyState compact title={emptyTitle} description={emptyDescription} className="day-accent-border bg-white/55" icon={<DayPathIcon />} />{parkId && <Button type="button" variant="secondary" disabled={isPending} onClick={() => run(() => applyStarterTemplate({ dayPlanId }))} className="w-full border-[rgb(var(--day-accent)/.25)] bg-white/55">Add a gentle starter plan</Button>}</div> : <div className="space-y-4">
       {timelineBands(items).map((band) => band.entries.length > 0 && <section key={band.label}>
@@ -64,9 +71,11 @@ export function DayPlanner({ tripId, dayPlanId, parkId, secondaryParkId, parks, 
     </div></details>
 
     <div className="grid gap-2 sm:grid-cols-2"><details className="rounded-control border border-border bg-white/35 p-3"><summary className="cursor-pointer text-xs font-semibold text-primary">Timing & coaching</summary><div className="mt-3"><TimingHelper parkId={parkId} items={items} coachingNote={coachingNote} /></div></details><details className="rounded-control border border-border bg-white/35 p-3"><summary className="cursor-pointer text-xs font-semibold text-primary">AI day planner</summary><div className="mt-3"><AiSuggestions tripId={tripId} dayPlanId={dayPlanId} hasPark={Boolean(parkId)} disabled={isPending} onApply={(suggestions) => run(async () => { for (const item of suggestions) await saveDayPlanItem({ dayPlanId, entityId: item.entityId, entityType: item.entityType, title: item.title, timingType: "EXACT", timeOfDay: "", startTime: item.startTime, endTime: item.endTime, estimatedCost: (item.estimatedCostCents / 100).toFixed(2), notes: item.notes, bookingStatus: item.entityType === "RESTAURANT" ? "WISHLIST" : "NONE", confirmationNumber: "", partySizeOverride: "", backupNote: "", paidExtraType: "" }); })} /></div></details></div>
-    <Modal open={Boolean(editor)} title={editor === "new" ? "Add to this day" : "Edit plan item"} onClose={() => setEditor(null)}>{editor && <ItemEditor dayPlanId={dayPlanId} parkId={parkId} item={editor === "new" ? undefined : editor} isPending={isPending} onSave={(input) => run(() => saveDayPlanItem(input), () => setEditor(null))} />}</Modal>
+    <Modal open={Boolean(editor)} title={typeof editor === "string" ? "Add to this day" : "Edit plan item"} onClose={() => setEditor(null)}>{editor && <ItemEditor dayPlanId={dayPlanId} parkId={parkId} item={typeof editor === "string" ? undefined : editor} initialType={typeof editor === "string" ? editor : undefined} isPending={isPending} onSave={(input) => run(() => saveDayPlanItem(input), () => setEditor(null))} />}</Modal>
   </div>;
 }
+
+function DayStat({ label, value }: { label: string; value: number }) { return <div className="rounded-lg px-2 py-1.5 text-center"><p className="font-display text-lg font-semibold text-primary">{value}</p><p className="text-[8px] font-bold uppercase tracking-wider text-muted">{label}</p></div>; }
 
 function SmallButton({ label, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) { return <button type="button" aria-label={label} title={label} {...props} className="rounded-md px-2 py-1 text-xs font-semibold text-muted hover:bg-sand/30 hover:text-primary disabled:opacity-35" />; }
 
@@ -100,10 +109,10 @@ function timelineBands(items: PlanItem[]) {
   return bands.map((band) => ({ ...band, entries: items.map((item, index) => ({ item, index })).filter(({ item }) => band.match(item)) }));
 }
 
-function ItemEditor({ dayPlanId, parkId, item, isPending, onSave }: { dayPlanId: string; parkId: string | null; item?: PlanItem; isPending: boolean; onSave: (input: Parameters<typeof saveDayPlanItem>[0]) => void }) {
+function ItemEditor({ dayPlanId, parkId, item, initialType, isPending, onSave }: { dayPlanId: string; parkId: string | null; item?: PlanItem; initialType?: PickType; isPending: boolean; onSave: (input: Parameters<typeof saveDayPlanItem>[0]) => void }) {
   const [selected, setSelected] = useState<SearchEntity | null>(item ? { id: item.entityId, name: item.title, entityType: item.entityType } : null);
   const [query, setQuery] = useState("");
-  const [type, setType] = useState(item?.entityType ?? "ATTRACTION");
+  const [type, setType] = useState(item?.entityType ?? initialType ?? "ATTRACTION");
   const [timingType, setTimingType] = useState<"EXACT" | "TIME_OF_DAY" | "FLEXIBLE">(item?.timingType === "EXACT" || item?.timingType === "TIME_OF_DAY" ? item.timingType : "FLEXIBLE");
   const [results, setResults] = useState<SearchEntity[]>([]);
   const [searching, setSearching] = useState(false);

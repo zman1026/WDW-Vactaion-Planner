@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { ParkMark } from "@/components/park-mark";
 import { buttonStyles } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import type { DayThemeId } from "@/lib/day-themes";
 
 export default function HomePage() {
   return <div className="space-y-20 pb-6">
@@ -11,6 +13,8 @@ export default function HomePage() {
 
     <section><div className="max-w-2xl"><p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">Made for real family days</p><h2 className="mt-2 text-3xl font-semibold text-primary sm:text-4xl">Structure where it helps. Flexibility where it matters.</h2></div><div className="mt-8 grid gap-5 md:grid-cols-3"><Feature icon={<CalendarIcon />} title="A day at a time" description="Focus on one park day, then move easily across your vacation with a clear day rail." /><Feature icon={<ClockIcon />} title="Plans that breathe" description="Use exact reservation times, broad morning or evening windows, or leave an idea flexible." /><Feature icon={<WalletIcon />} title="A gentle budget check" description="See your estimated itinerary spend against the family budget as plans take shape." /></div></section>
 
+    <section><div className="flex flex-wrap items-end justify-between gap-4"><div className="max-w-2xl"><p className="text-xs font-bold uppercase tracking-[0.2em] text-gold">Four parks. Four personalities.</p><h2 className="mt-2 text-3xl font-semibold text-primary sm:text-4xl">Let every day feel like the place you’re going.</h2><p className="mt-3 text-muted">Each planning day changes its rhythm, color, and visual language to match the park—so your itinerary feels less like a spreadsheet and more like the beginning of the story.</p></div><Link href="/explore" className={buttonStyles({ variant: "secondary" })}>Explore every park</Link></div><div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{parkWorlds.map((park) => <div key={park.theme} data-theme={park.theme} data-pattern={park.pattern} className="day-theme day-theme__hero min-h-52 rounded-card border p-5 shadow-card"><span className="day-accent-text grid size-14 place-items-center rounded-full border border-[rgb(var(--day-accent)/.2)] bg-white/60"><ParkMark theme={park.theme} className="size-9" /></span><p className="day-accent-text mt-5 text-[9px] font-bold uppercase tracking-[0.18em]">{park.eyebrow}</p><h3 className="mt-1 font-display text-xl font-semibold text-primary">{park.name}</h3><p className="mt-2 text-xs leading-relaxed text-muted">{park.description}</p></div>)}</div></section>
+
     <section className="rounded-card border border-gold/25 bg-primary px-6 py-9 text-center text-white shadow-lift sm:px-10"><p className="font-display text-2xl font-semibold">Ready when your family is.</p><p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-sand">Start with dates. We’ll make a page for every day, and you can fill in the story from there.</p><Link href="/trips/new" className={buttonStyles({ variant: "secondary", size: "lg", className: "mt-6 border-sand/30 bg-surface" })}>Create your trip</Link></section>
   </div>;
 }
@@ -19,6 +23,12 @@ function ProductPreview() { return <div className="relative mx-auto w-full max-w
 function PreviewItem({ time, title, tone }: { time: string; title: string; tone: string }) { return <div className="relative rounded-control border border-border bg-parchment/55 p-3"><span className={`absolute -left-[1.86rem] top-4 size-3 rounded-full border-2 border-surface ${tone}`} /><p className="text-[10px] font-bold uppercase tracking-wider text-muted">{time}</p><p className="mt-1 text-sm font-semibold text-primary">{title}</p></div>; }
 function Feature({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) { return <Card className="p-6"><span className="grid size-11 place-items-center rounded-control bg-sand/30 text-primary">{icon}</span><h3 className="mt-5 font-display text-xl font-semibold text-primary">{title}</h3><p className="mt-2 text-sm leading-relaxed text-muted">{description}</p></Card>; }
 const iconClass = "size-5 fill-none stroke-current stroke-[1.8]";
+const parkWorlds: Array<{ theme: DayThemeId; pattern: string; name: string; eyebrow: string; description: string }> = [
+  { theme: "mk", pattern: "sparkle", name: "Magic Kingdom", eyebrow: "Bright wishes", description: "Storybook moments, classic favorites, and a little room for wonder." },
+  { theme: "epcot", pattern: "geometry", name: "EPCOT", eyebrow: "Curious discoveries", description: "Big ideas, global flavors, and an evening made for lingering." },
+  { theme: "hs", pattern: "stage", name: "Hollywood Studios", eyebrow: "Step into the story", description: "Headliners, showtimes, and cinematic moments with a clear cue." },
+  { theme: "ak", pattern: "organic", name: "Animal Kingdom", eyebrow: "Follow the wild path", description: "A gentler trail through adventure, animals, and unexpected detail." },
+];
 function CalendarIcon() { return <svg viewBox="0 0 24 24" className={iconClass}><path d="M6 3v3m12-3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z" /></svg>; }
 function ClockIcon() { return <svg viewBox="0 0 24 24" className={iconClass}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>; }
 function WalletIcon() { return <svg viewBox="0 0 24 24" className={iconClass}><path d="M4 7h15a1 1 0 0 1 1 1v11H4V7Zm0 0V5h13v2m0 5h3" /></svg>; }

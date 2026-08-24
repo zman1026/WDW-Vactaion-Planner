@@ -98,6 +98,9 @@ prisma/
 - [x] Guided trip setup, cache-resolved starter plans, and lightweight day-rhythm coaching
 - [x] Optional Google OAuth alongside email/password authentication
 - [x] View-only share framing, copy-link action, and optional hidden costs
+- [x] Trip overview, reservation hub, and in-park Today mode
+- [x] Travel-party roster with co-planner and RSVP context
+- [x] Resilient hotel catalog refresh with manual off-property fallback
 
 ### Phase 1 complete
 
@@ -128,6 +131,12 @@ The `20260810230000_planning_workflows` migration adds nullable dining and paid-
 Explore reports the directory's latest sync time and supports adding cached entities directly to a signed-in trip day. For production freshness, set `CRON_SECRET` and schedule a Railway cron request to `POST /api/entities/sync` with `Authorization: Bearer <CRON_SECRET>`; signed-in users can also refresh in the app. Entity writes are idempotent upserts.
 
 Google sign-in is optional. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` and register `/api/auth/callback/google` for the deployment URL. Email/password registration and sign-in remain available.
+
+### Trip experience hub
+
+The `20260824170000_trip_experience_hub` migration adds trip reservations, travel-party companions, and custom hotel names. Reservations can be attached to a planning day and flow into the trip overview, printable share view, budget, and Today mode. Today mode opens automatically during an active trip and remains available as a preview beforehand.
+
+Hotel refreshes now preserve a useful recovery path: when the live WDW hierarchy cannot be reached, the bundled Disney resort catalog is still cached. Any hotel can also be entered manually, so planning is never blocked by directory availability.
 
 ## Data Source Notes
 

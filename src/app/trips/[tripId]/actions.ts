@@ -9,7 +9,7 @@ import { assignMustDoSchema, dayPlanItemSchema, itemMutationSchema, mustDoSchema
 import { getDescendantEntityIds } from "@/lib/entity-hierarchy";
 import { prisma } from "@/lib/prisma";
 import { budgetToCents, calendarDateToUtc } from "@/lib/trip-validation";
-import { clearDaySchema, copyDaySchema, hotelAssignmentSchema, partyProfileSchema, tripIdSchema, updateTripSchema } from "@/lib/trip-management-validation";
+import { clearDaySchema, companionMutationSchema, companionSchema, copyDaySchema, hotelAssignmentSchema, partyProfileSchema, reservationMutationSchema, reservationSchema, tripIdSchema, updateTripSchema } from "@/lib/trip-management-validation";
 
 export type MutationResult = { success: true; message?: string } | { success: false; message: string };
 
@@ -57,10 +57,85 @@ export async function assignHotel(input: unknown): Promise<MutationResult> {
     const hotel = await prisma.parkEntity.findFirst({ where: { id: parsed.data.hotelId, entityType: "HOTEL" }, select: { id: true } });
     if (!hotel) return { success: false, message: "Choose a hotel from the WDW directory." };
   }
-  const updated = await prisma.trip.updateMany({ where: { id: parsed.data.tripId, userId: user.id }, data: { hotelId: parsed.data.hotelId || null } });
+  const updated = await prisma.trip.updateMany({ where: { id: parsed.data.tripId, userId: user.id }, data: { hotelId: parsed.data.hotelId || null, customHotelName: parsed.data.hotelId ? null : parsed.data.customHotelName || null } });
   if (!updated.count) return { success: false, message: "Trip not found." };
   revalidatePath(`/trips/${parsed.data.tripId}`); revalidatePath(`/share/${parsed.data.tripId}`);
-  return { success: true, message: "Hotel selection saved." };
+  return { success: true, message: parsed.data.hotelId || parsed.data.customHotelName ? "Hotel selection saved." : "Hotel selection cleared." };
+}
+
+export async function saveReservation(input: unknown): Promise<MutationResult> {
+  const parsed = reservationSchema.safeParse(input);
+  if (!parsed.success) return { success: false, message: parsed.error.issues[0]?.message ?? "Check the reservation details." };
+  const user = await requireCurrentUser();
+  const trip = await prisma.trip.findFirst({ where: { id: parsed.data.tripId, userId: user.id }, select: { id: true, startDate: true, endDate: true } });
+  if (!trip) return { success: false, message: "Trip not found." };
+  const day = parsed.data.dayPlanId ? await prisma.dayPlan.findFirst({ where: { id: parsed.data.dayPlanId, tripId: trip.id }, select: { id: true, date: true } }) : null;
+  if (parsed.data.dayPlanId && !day) return { success: false, message: "Choose a day from this trip." };
+  const date = day?.date ?? calendarDateToUtc(parsed.data.reservationDate);
+  if (date < trip.startDate || date > trip.endDate) return { success: false, message: "Reservation date must fall within the trip." };
+  const data = {
+    dayPlanId: day?.id ?? null,
+    category: parsed.data.category,
+    title: parsed.data.title,
+    date,
+    startTime: parsed.data.startTime || null,
+    endTime: parsed.data.endTime || null,
+    status: parsed.data.status,
+    confirmationNumber: parsed.data.confirmationNumber || null,
+    location: parsed.data.location || null,
+    notes: parsed.data.notes || null,
+    costCents: parsed.data.estimatedCost === "" ? null : Math.round(Number(parsed.data.estimatedCost) * 100),
+    partySize: parsed.data.partySize === "" ? null : Number(parsed.data.partySize),
+  };
+  if (parsed.data.id) {
+    const existing = await prisma.reservation.findFirst({ where: { id: parsed.data.id, tripId: trip.id }, select: { id: true } });
+    if (!existing) return { success: false, message: "Reservation not found." };
+    await prisma.reservation.update({ where: { id: existing.id }, data });
+  } else {
+    await prisma.reservation.create({ data: { ...data, tripId: trip.id } });
+  }
+  revalidatePath(`/trips/${trip.id}`); revalidatePath(`/share/${trip.id}`);
+  return { success: true, message: parsed.data.id ? "Reservation updated." : "Reservation added." };
+}
+
+export async function removeReservation(input: unknown): Promise<MutationResult> {
+  const parsed = reservationMutationSchema.safeParse(input);
+  if (!parsed.success) return { success: false, message: "Reservation not found." };
+  const user = await requireCurrentUser();
+  const reservation = await prisma.reservation.findFirst({ where: { id: parsed.data.reservationId, trip: { userId: user.id } }, select: { id: true, tripId: true } });
+  if (!reservation) return { success: false, message: "Reservation not found." };
+  await prisma.reservation.delete({ where: { id: reservation.id } });
+  revalidatePath(`/trips/${reservation.tripId}`); revalidatePath(`/share/${reservation.tripId}`);
+  return { success: true, message: "Reservation removed." };
+}
+
+export async function saveCompanion(input: unknown): Promise<MutationResult> {
+  const parsed = companionSchema.safeParse(input);
+  if (!parsed.success) return { success: false, message: parsed.error.issues[0]?.message ?? "Check the traveler details." };
+  const user = await requireCurrentUser();
+  const trip = await prisma.trip.findFirst({ where: { id: parsed.data.tripId, userId: user.id }, select: { id: true } });
+  if (!trip) return { success: false, message: "Trip not found." };
+  const data = { name: parsed.data.name, email: parsed.data.email || null, role: parsed.data.role, rsvp: parsed.data.rsvp };
+  if (parsed.data.id) {
+    const existing = await prisma.tripCompanion.findFirst({ where: { id: parsed.data.id, tripId: trip.id }, select: { id: true } });
+    if (!existing) return { success: false, message: "Traveler not found." };
+    await prisma.tripCompanion.update({ where: { id: existing.id }, data });
+  } else {
+    await prisma.tripCompanion.create({ data: { ...data, tripId: trip.id } });
+  }
+  revalidatePath(`/trips/${trip.id}`);
+  return { success: true, message: parsed.data.id ? "Traveler updated." : "Traveler added to the party." };
+}
+
+export async function removeCompanion(input: unknown): Promise<MutationResult> {
+  const parsed = companionMutationSchema.safeParse(input);
+  if (!parsed.success) return { success: false, message: "Traveler not found." };
+  const user = await requireCurrentUser();
+  const companion = await prisma.tripCompanion.findFirst({ where: { id: parsed.data.companionId, trip: { userId: user.id } }, select: { id: true, tripId: true } });
+  if (!companion) return { success: false, message: "Traveler not found." };
+  await prisma.tripCompanion.delete({ where: { id: companion.id } });
+  revalidatePath(`/trips/${companion.tripId}`);
+  return { success: true, message: "Traveler removed." };
 }
 
 export async function updatePartyProfile(input: unknown): Promise<MutationResult> {

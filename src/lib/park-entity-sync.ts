@@ -7,7 +7,14 @@ import { WDW_HOTELS } from "@/lib/wdw-hotels";
 const BATCH_SIZE = 100;
 
 export async function syncParkEntities() {
-  const hierarchy = await getWDWHierarchy();
+  let hierarchy: Awaited<ReturnType<typeof getWDWHierarchy>> = [];
+  let liveDirectoryAvailable = true;
+  try {
+    hierarchy = await getWDWHierarchy();
+  } catch (error) {
+    liveDirectoryAvailable = false;
+    console.error("Live WDW directory unavailable; refreshing the bundled hotel catalog instead.", error);
+  }
   const upstreamHasHotels = hierarchy.some((entity) => entity.entityType === "HOTEL");
   const entities = upstreamHasHotels ? hierarchy : [...hierarchy, ...WDW_HOTELS];
   const syncedAt = new Date();
@@ -38,5 +45,11 @@ export async function syncParkEntities() {
     );
   }
 
-  return { count: entities.length, hotelCount: entities.filter((entity) => entity.entityType === "HOTEL").length, syncedAt };
+  return {
+    count: entities.length,
+    hotelCount: entities.filter((entity) => entity.entityType === "HOTEL").length,
+    syncedAt,
+    mode: liveDirectoryAvailable ? "live" : "hotel-fallback",
+    warning: liveDirectoryAvailable ? null : "The resort catalog is ready. Live park listings could not be refreshed yet.",
+  };
 }
