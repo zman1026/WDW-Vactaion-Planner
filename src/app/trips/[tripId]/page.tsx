@@ -106,6 +106,10 @@ export default async function TripPage({ params, searchParams }: TripPageProps) 
       partySize: item.partySizeOverride,
       notes: item.notes,
     })));
+  const visibleReservationSummaries = reservationSummaries.filter((reservation) => {
+    const day = trip.dayPlans.find((item) => item.id === reservation.dayPlanId);
+    return !day?.items.some((item) => sameItineraryEntry(reservation.title, reservation.startTime, item.title, item.startTime));
+  });
   const progress = calculateTripProgress({
     hotelId: trip.hotelId ?? trip.customHotelName,
     budgetCents: trip.budgetCents,
@@ -182,8 +186,8 @@ export default async function TripPage({ params, searchParams }: TripPageProps) 
         <TripOverview
           tripId={trip.id}
           hotelName={hotelName}
-          reservationCount={reservationSummaries.filter((item) => item.status === "CONFIRMED").length + itineraryBookings.length}
-          openReservationCount={reservationSummaries.filter((item) => item.status !== "CONFIRMED").length}
+          reservationCount={visibleReservationSummaries.filter((item) => item.status === "CONFIRMED").length + itineraryBookings.length}
+          openReservationCount={visibleReservationSummaries.filter((item) => item.status !== "CONFIRMED").length}
           progress={progress}
           mustDos={trip.mustDos}
           days={trip.dayPlans.map((day) => ({
@@ -192,7 +196,7 @@ export default async function TripPage({ params, searchParams }: TripPageProps) 
             parkName: day.parkId ? parkNames.get(day.parkId) ?? null : null,
             secondaryParkName: day.secondaryParkId ? parkNames.get(day.secondaryParkId) ?? null : null,
             notes: day.notes,
-            reservationCount: reservationSummaries.filter((item) => item.dayPlanId === day.id).length,
+            reservationCount: visibleReservationSummaries.filter((item) => item.dayPlanId === day.id).length,
             items: day.items.map((item) => ({ entityType: item.entityType, title: item.title, timingType: item.timingType, startTime: item.startTime, bookingStatus: item.bookingStatus })),
           }))}
         />
@@ -234,11 +238,12 @@ export default async function TripPage({ params, searchParams }: TripPageProps) 
                 dayPlanId={selectedDay.id}
                 dayNumber={selectedIndex + 1}
                 dateLabel={format(selectedDay.date, "EEE, MMM d")}
+                themeId={selectedTheme.id}
                 parkId={selectedDay.parkId}
                 secondaryParkId={selectedDay.secondaryParkId}
                 parks={parks}
                 items={selectedDay.items}
-                reservations={reservationSummaries.filter((item) => item.dayPlanId === selectedDay.id)}
+                reservations={visibleReservationSummaries.filter((item) => item.dayPlanId === selectedDay.id)}
                 days={days}
                 mustDos={trip.mustDos}
                 coachingNote={coachingNote}
@@ -273,4 +278,9 @@ function OverviewIcon() {
 
 function TicketIcon() {
   return <svg viewBox="0 0 24 24" className="size-5 fill-none stroke-current stroke-[1.8]" aria-hidden="true"><path d="M4 7h16v4a2 2 0 0 0 0 4v4H4v-4a2 2 0 0 0 0-4V7Zm6 0v12" /></svg>;
+}
+
+function sameItineraryEntry(firstTitle: string, firstTime: string | null, secondTitle: string, secondTime: string | null) {
+  const normalize = (value: string) => value.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return normalize(firstTitle) === normalize(secondTitle) && (firstTime ?? "") === (secondTime ?? "");
 }

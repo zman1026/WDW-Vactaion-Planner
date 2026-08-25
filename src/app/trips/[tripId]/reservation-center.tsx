@@ -49,6 +49,7 @@ type BookingRow = {
   category: string;
   title: string;
   date: string;
+  dayLabel: string;
   startTime: string | null;
   status: string;
   confirmationNumber: string | null;
@@ -79,13 +80,16 @@ export function ReservationCenter({
   const [pending, startTransition] = useTransition();
   const [notice, setNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
 
-  const mapReservation = (item: ReservationSummary): BookingRow => ({
+  const mapReservation = (item: ReservationSummary): BookingRow => {
+    const dayPlanId = item.dayPlanId ?? dayIdForDate(days, item.date);
+    return {
       id: item.id,
       source: "reservation" as const,
-      dayPlanId: item.dayPlanId ?? dayIdForDate(days, item.date),
+      dayPlanId,
       category: item.category,
       title: item.title,
       date: item.date,
+      dayLabel: days.find((day) => day.id === dayPlanId)?.label ?? format(parseISO(item.date), "EEE, MMM d"),
       startTime: item.startTime,
       status: item.status,
       confirmationNumber: item.confirmationNumber,
@@ -93,9 +97,12 @@ export function ReservationCenter({
       costCents: item.costCents,
       partySize: item.partySize,
       reservation: item,
-    });
+    };
+  };
+  const reservationRows = reservations.map(mapReservation);
+  const duplicateReservationIds = new Set(reservationRows.filter((reservation) => itineraryBookings.some((item) => sameItineraryEntry(reservation, item))).map((item) => item.id));
   const bookings: BookingRow[] = [
-    ...reservations.filter((item) => item.status === "CONFIRMED").map(mapReservation),
+    ...reservationRows.filter((item) => item.status === "CONFIRMED" && !duplicateReservationIds.has(item.id)),
     ...itineraryBookings.map((item) => ({
       id: item.id,
       source: "plan" as const,
@@ -103,6 +110,7 @@ export function ReservationCenter({
       category: item.entityType,
       title: item.title,
       date: item.date,
+      dayLabel: days.find((day) => day.id === item.dayPlanId)?.label ?? format(parseISO(item.date), "EEE, MMM d"),
       startTime: item.startTime,
       status: item.status,
       confirmationNumber: item.confirmationNumber,
@@ -111,9 +119,7 @@ export function ReservationCenter({
       partySize: item.partySize,
     })),
   ].sort((a, b) => `${a.date}-${a.startTime ?? "99:99"}-${a.title}`.localeCompare(`${b.date}-${b.startTime ?? "99:99"}-${b.title}`));
-  const olderOpenItems = reservations
-    .filter((item) => item.status !== "CONFIRMED")
-    .map(mapReservation)
+  const olderOpenItems = reservationRows
     .sort((a, b) => `${a.date}-${a.startTime ?? "99:99"}-${a.title}`.localeCompare(`${b.date}-${b.startTime ?? "99:99"}-${b.title}`));
 
   function run(action: () => Promise<MutationResult>, close = false) {
@@ -159,7 +165,7 @@ export function ReservationCenter({
     <div className="space-y-4">
       <section className="rounded-card border border-border bg-surface p-4 shadow-card sm:p-5">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold">Bookings</p>
-        <h2 className="mt-1 text-2xl font-semibold text-primary">Everything you’ve booked</h2>
+        <h2 className="mt-1 text-2xl font-semibold text-primary">Bookings from your days</h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted">
           Booked meals and activities appear here automatically. Add or change them in the day where they happen.
         </p>
@@ -175,7 +181,7 @@ export function ReservationCenter({
         <ol className="space-y-2" aria-label="Booked trip items">
           {bookings.map((item) => (
             <li key={`${item.source}-${item.id}`}>
-              <BookingCard tripId={tripId} item={item} onEdit={item.reservation ? () => setEditor(item.reservation!) : undefined} />
+              <BookingCard tripId={tripId} item={item} />
             </li>
           ))}
         </ol>
@@ -191,7 +197,7 @@ export function ReservationCenter({
       {olderOpenItems.length > 0 && (
         <details className="group rounded-card border border-border bg-surface shadow-card">
           <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-primary">
-            <span>Older items needing attention ({olderOpenItems.length})</span>
+            <span>Older reservation records ({olderOpenItems.length})</span>
             <span className="text-muted transition group-open:rotate-180" aria-hidden="true">⌄</span>
           </summary>
           <ol className="space-y-2 border-t border-border p-3">
@@ -246,10 +252,10 @@ function BookingCard({ tripId, item, onEdit }: { tripId: string; item: BookingRo
           <strong className="truncate text-sm text-primary">{item.title}</strong>
           <Badge tone={isConfirmed(item.status) ? "success" : "warning"}>{statusLabel(item.status)}</Badge>
         </span>
-        <span className="mt-1 block text-xs text-muted">{format(parseISO(item.date), "EEE, MMM d")} · {item.startTime ? clock(item.startTime) : "Flexible"} · {categoryLabel(item.category)}</span>
+        <span className="mt-1 block text-xs text-muted">{item.dayLabel} · {item.startTime ? clock(item.startTime) : "Flexible"} · {categoryLabel(item.category)}</span>
         {item.confirmationNumber && <span className="mt-1 block truncate text-[11px] font-semibold text-primary">Confirmation {item.confirmationNumber}</span>}
       </span>
-      <span className="shrink-0 text-sm font-semibold text-primary">Edit</span>
+      <span className="shrink-0 text-sm font-semibold text-primary">{item.source === "plan" ? "Edit" : "Open"}</span>
     </>
   );
 
@@ -291,4 +297,11 @@ function categoryIcon(value: string) {
 function clock(value: string) {
   const [hour, minute] = value.split(":").map(Number);
   return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(2000, 0, 1, hour, minute));
+}
+
+function sameItineraryEntry(reservation: BookingRow, item: ItineraryBooking) {
+  const normalize = (value: string) => value.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return reservation.dayPlanId === item.dayPlanId
+    && normalize(reservation.title) === normalize(item.title)
+    && (reservation.startTime ?? "") === (item.startTime ?? "");
 }

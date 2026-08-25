@@ -136,7 +136,7 @@ Google sign-in is optional. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` an
 
 The trip workspace now follows one clear loop: open the compact Overview, choose a day, and add itinerary items there. Today is a shortcut to the current day rather than a separate planning surface. Bookings are itinerary items marked Booked, and the Bookings page is a simple cross-trip list that links back to each day; older standalone reservation records remain editable for compatibility. Park selection, must-dos, hopper controls, timing help, AI suggestions, templates, copy/clear, party, sharing, and settings are available in focused sheets or overflow menus instead of competing with the timeline.
 
-The day rail stays on one swipeable row at phone widths, primary controls meet a 44px minimum target, new itinerary items default to Flexible timing, and optional confirmation, cost, party, backup, paid-extra, and notes fields live under More details.
+The day rail stays on one swipeable row at phone widths, primary controls meet a 44px minimum target, and the visual park sheet offers Rest plus the four WDW parks. New itinerary items default to Flexible timing, with simple Morning, Afternoon, Evening, and Exact time choices; confirmation, cost, party, backup, paid-extra, and notes fields live under More details. The planner is split into focused timeline, item-sheet, park-sheet, and day-tools components, and Explore uses swipeable trip-day chips with park names.
 
 ### Trip experience hub
 

@@ -78,6 +78,8 @@ h1, h2, .font-display { font-family: var(--font-display); }
   -webkit-overflow-scrolling: touch;
 }
 .day-filmstrip::-webkit-scrollbar { display: none; }
+.day-chip-scroller { scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.day-chip-scroller::-webkit-scrollbar { display: none; }
 
 /* Day themes are intentionally scoped to the itinerary canvas. The app shell
    remains calm parchment and navy while each selected day carries its identity. */
@@ -126,6 +128,14 @@ h1, h2, .font-display { font-family: var(--font-display); }
 }
 
 .day-theme__hero:hover::after { opacity: .48; }
+.day-planner-hero {
+  border-left: 4px solid rgb(var(--day-accent));
+  background:
+    radial-gradient(circle at 82% -30%, rgb(var(--day-glow) / .55), transparent 15rem),
+    linear-gradient(120deg, rgb(255 255 255 / .9), rgb(var(--day-wash) / .86));
+  box-shadow: 0 12px 30px rgb(var(--day-accent) / .12);
+}
+.day-planner-hero::after { opacity: .52; }
 .day-theme[data-pattern="geometry"] .day-theme__hero::after { background-image: linear-gradient(30deg, transparent 48%, rgb(var(--day-accent) / .18) 49%, rgb(var(--day-accent) / .18) 51%, transparent 52%); background-size: 30px 52px; }
 .day-theme[data-pattern="stage"] .day-theme__hero::after { background-image: repeating-linear-gradient(112deg, transparent 0 28px, rgb(var(--day-accent) / .1) 29px 31px); }
 .day-theme[data-pattern="organic"] .day-theme__hero::after { background-image: radial-gradient(ellipse at center, transparent 52%, rgb(var(--day-accent) / .15) 54%, transparent 57%); background-size: 42px 29px; }

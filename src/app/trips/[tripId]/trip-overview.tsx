@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+import { format, isToday } from "date-fns";
 import Link from "next/link";
 import { ParkMark } from "@/components/park-mark";
 import { Badge } from "@/components/ui/badge";
@@ -124,7 +124,8 @@ export function TripOverview({
 function RoadmapDay({ tripId, day, index, hotelName }: { tripId: string; day: OverviewDay; index: number; hotelName: string | null }) {
   const theme = resolveDayTheme({ parkName: day.parkName, hotelName });
   const total = day.items.length + day.reservationCount;
-  const label = day.parkName || (hotelName ? "Resort / rest" : "Open day");
+  const label = day.parkName ? theme.label : "Rest day";
+  const currentDay = isToday(day.date);
 
   return (
     <li className="min-w-0">
@@ -132,11 +133,11 @@ function RoadmapDay({ tripId, day, index, hotelName }: { tripId: string; day: Ov
         href={dayHref(tripId, day.id)}
         data-theme={theme.id}
         data-pattern={theme.pattern}
-        className="day-theme day-theme__hero group flex min-h-28 flex-col rounded-card border p-3 shadow-card transition hover:-translate-y-0.5 hover:shadow-lift"
+        className={`day-theme day-theme__hero group flex min-h-28 flex-col rounded-card border p-3 shadow-card transition hover:-translate-y-0.5 hover:shadow-lift ${currentDay ? "ring-2 ring-gold ring-offset-2" : ""}`}
       >
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="day-accent-text text-[9px] font-bold uppercase tracking-[0.14em]">Day {index + 1}</p>
+            <p className="day-accent-text text-[9px] font-bold uppercase tracking-[0.14em]">Day {index + 1}{currentDay ? " · Today" : ""}</p>
             <p className="mt-0.5 text-xs font-semibold text-muted">{format(day.date, "EEE, MMM d")}</p>
           </div>
           <span className="day-accent-text grid size-8 shrink-0 place-items-center rounded-full border border-[rgb(var(--day-accent)/.2)] bg-white/60">

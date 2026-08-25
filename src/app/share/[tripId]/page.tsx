@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { ParkMark } from "@/components/park-mark";
 import { resolveDayTheme } from "@/lib/day-themes";
 import { prisma } from "@/lib/prisma";
 import { normalizePartyProfile, partyProfileSummary } from "@/lib/party-profile";
@@ -24,7 +25,7 @@ export default async function SharedTripPage({ params, searchParams }: { params:
 
   return <article className="mx-auto max-w-5xl space-y-8 print:max-w-none print:text-black">
     <header className="relative overflow-hidden rounded-card border border-gold/30 bg-primary px-6 py-10 text-white shadow-lift print:border-primary print:bg-white print:text-black print:shadow-none sm:px-10 sm:py-12">
-      <div className="absolute -right-16 -top-24 size-72 rounded-full border border-sand/15" /><div className="absolute -right-4 -top-12 size-44 rounded-full border border-sand/15" />
+      <div className="magic-dust absolute inset-0 opacity-35 print:hidden" aria-hidden="true" /><div className="absolute -right-16 -top-24 size-72 rounded-full border border-sand/15" /><div className="absolute -right-4 -top-12 size-44 rounded-full border border-sand/15" />
       <div className="relative flex flex-wrap items-start justify-between gap-6"><div className="max-w-3xl"><p className="text-xs font-bold uppercase tracking-[0.24em] text-sand print:text-gold">A family trip program · View only</p><h1 className="mt-3 text-4xl font-semibold sm:text-6xl">{trip.name}</h1><p className="mt-4 font-display text-xl text-sand print:text-primary">{format(trip.startDate, "MMMM d, yyyy")} – {format(trip.endDate, "MMMM d, yyyy")}</p>{hotelName && <p className="mt-3 text-sm text-white/80 print:text-muted">Home base · {hotelName}</p>}</div><PrintButton /></div>
     </header>
 
@@ -41,15 +42,16 @@ export default async function SharedTripPage({ params, searchParams }: { params:
       const secondParkName = day.secondaryParkId ? names.get(day.secondaryParkId) : null;
       const theme = resolveDayTheme({ parkName, hotelName });
       const moment = dayMoment(index, trip.dayPlans.length);
-      const dayReservations = trip.reservations.filter((item) => item.dayPlanId === day.id || format(item.date, "yyyy-MM-dd") === format(day.date, "yyyy-MM-dd"));
+      const dayReservations = trip.reservations
+        .filter((item) => item.dayPlanId === day.id || format(item.date, "yyyy-MM-dd") === format(day.date, "yyyy-MM-dd"))
+        .filter((reservation) => !day.items.some((item) => sameItineraryEntry(reservation.title, reservation.startTime, item.title, item.startTime)));
       const entries = [
         ...day.items.map((item, itemIndex) => ({ kind: "plan" as const, item, order: sharedPlanOrder(item, itemIndex) })),
         ...dayReservations.map((item) => ({ kind: "reservation" as const, item, order: sharedReservationOrder(item.startTime) })),
       ].sort((a, b) => a.order - b.order);
       return <li key={day.id} data-theme={theme.id} data-pattern={theme.pattern} className="day-theme share-day overflow-hidden rounded-card border border-border bg-surface shadow-card">
         <header className="day-theme__hero px-5 py-6 sm:px-7">
-          <p className="day-accent-text text-[10px] font-bold uppercase tracking-[0.2em]">{moment || theme.eyebrow}</p>
-          <div className="mt-2 flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-2xl font-semibold text-primary sm:text-3xl">{theme.isParkDay ? theme.displayName : hotelName ? `${hotelName} · Resort day` : "Resort day"}</h2><p className="mt-1 text-sm text-muted">Day {index + 1} · {format(day.date, "EEEE, MMMM d")}{secondParkName ? ` · Hopper to ${secondParkName}` : ""}</p></div><span className="rounded-full border border-[rgb(var(--day-accent)/.24)] bg-white/60 px-3 py-1 text-xs font-bold text-[rgb(var(--day-accent-deep))]">{entries.length} thing{entries.length === 1 ? "" : "s"} planned</span></div>
+          <div className="flex items-start gap-3"><span className="day-accent-text grid size-11 shrink-0 place-items-center rounded-full border border-[rgb(var(--day-accent)/.24)] bg-white/65"><ParkMark theme={theme.id} className="size-7" /></span><div className="min-w-0 flex-1"><p className="day-accent-text text-[10px] font-bold uppercase tracking-[0.2em]">{moment || theme.eyebrow}</p><div className="mt-1 flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-2xl font-semibold text-primary sm:text-3xl">{theme.isParkDay ? theme.displayName : hotelName ? `${hotelName} · Resort day` : "Resort day"}</h2><p className="mt-1 text-sm text-muted">Day {index + 1} · {format(day.date, "EEEE, MMMM d")}{secondParkName ? ` · Hopper to ${secondParkName}` : ""}</p></div><span className="rounded-full border border-[rgb(var(--day-accent)/.24)] bg-white/60 px-3 py-1 text-xs font-bold text-[rgb(var(--day-accent-deep))]">{entries.length} thing{entries.length === 1 ? "" : "s"} planned</span></div></div></div>
         </header>
         {entries.length === 0 ? <p className="px-5 py-6 text-sm italic text-muted sm:px-7">{theme.emptyDescription}</p> : <ol className="px-5 py-3 sm:px-7">{entries.map((entry) => {
           if (entry.kind === "reservation") {
@@ -62,7 +64,7 @@ export default async function SharedTripPage({ params, searchParams }: { params:
           const item = entry.item;
           return <li key={`plan-${item.id}`} className="grid break-inside-avoid gap-1 border-t border-[rgb(var(--day-accent)/.16)] py-4 first:border-t-0 sm:grid-cols-[8rem_1fr] sm:gap-5">
             <span className="day-accent-text text-sm font-bold">{shareTiming(item)}</span>
-            <div><div className="flex flex-wrap items-center gap-2"><p className="font-semibold text-primary">{item.title}</p><span className="rounded-full border border-[rgb(var(--day-accent)/.2)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[rgb(var(--day-accent-deep))]">{itemLabel(item.entityType)}</span>{item.bookingStatus === "BOOKED" && <span className="text-[10px] font-bold uppercase tracking-wider text-success">Booked</span>}{item.paidExtraType && <span className="text-[10px] font-bold uppercase tracking-wider text-gold">{item.paidExtraType.replaceAll("_", " ")}</span>}</div>{item.timingType === "EXACT" && item.endTime && <p className="mt-1 text-xs text-muted">Planned until {displayTime(item.endTime)}</p>}{item.confirmationNumber && <p className="mt-1 text-xs font-semibold text-primary">Confirmation {item.confirmationNumber}{item.partySizeOverride ? ` · Party of ${item.partySizeOverride}` : ""}</p>}{item.notes && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted">{item.notes}</p>}{showCosts && item.estimatedCostCents !== null && <p className="mt-1 text-xs text-muted">Estimated ${(item.estimatedCostCents / 100).toFixed(2)}</p>}</div>
+            <div><div className="flex flex-wrap items-center gap-2"><p className="font-semibold text-primary">{item.title}</p><span className="rounded-full border border-[rgb(var(--day-accent)/.2)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[rgb(var(--day-accent-deep))]">{itemLabel(item.entityType)}</span>{item.bookingStatus === "BOOKED" && <span className="text-[10px] font-bold uppercase tracking-wider text-success">Booked</span>}{item.paidExtraType && <span className="text-[10px] font-bold uppercase tracking-wider text-gold">{paidExtraLabel(item.paidExtraType)}</span>}</div>{item.timingType === "EXACT" && item.endTime && <p className="mt-1 text-xs text-muted">Planned until {displayTime(item.endTime)}</p>}{item.confirmationNumber && <p className="mt-1 text-xs font-semibold text-primary">Confirmation {item.confirmationNumber}{item.partySizeOverride ? ` · Party of ${item.partySizeOverride}` : ""}</p>}{item.notes && <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-muted">{item.notes}</p>}{showCosts && item.estimatedCostCents !== null && <p className="mt-1 text-xs text-muted">Estimated ${(item.estimatedCostCents / 100).toFixed(2)}</p>}</div>
           </li>;
         })}</ol>}
       </li>;
@@ -115,4 +117,15 @@ function dayMoment(index: number, length: number) {
   if (index === 0) return "Arrival day";
   if (index === length - 1) return "Departure day";
   return null;
+}
+
+function paidExtraLabel(value: string) {
+  if (value === "LIGHTNING_LANE") return "Lightning Lane";
+  if (value === "SPECIAL_EVENT") return "Special event";
+  return "Paid extra";
+}
+
+function sameItineraryEntry(firstTitle: string, firstTime: string | null, secondTitle: string, secondTime: string | null) {
+  const normalize = (value: string) => value.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return normalize(firstTitle) === normalize(secondTitle) && (firstTime ?? "") === (secondTime ?? "");
 }
