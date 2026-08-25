@@ -25,54 +25,132 @@ type OverviewDay = {
   items: OverviewItem[];
 };
 
-export function TripOverview({ tripId, days, hotelName, partySize, companionCount, reservationCount, openReservationCount, progress, mustDos, plannedCostCents, budgetCents }: {
+export function TripOverview({
+  tripId,
+  days,
+  hotelName,
+  reservationCount,
+  openReservationCount,
+  progress,
+  mustDos,
+}: {
   tripId: string;
   days: OverviewDay[];
   hotelName: string | null;
-  partySize: number;
-  companionCount: number;
   reservationCount: number;
   openReservationCount: number;
   progress: TripProgress;
   mustDos: Array<{ dayPlanItemId: string | null }>;
-  plannedCostCents: number;
-  budgetCents: number | null;
 }) {
   const unplacedMustDos = mustDos.filter((item) => !item.dayPlanItemId).length;
   const openDays = days.filter((day) => !day.parkName && !day.notes?.trim() && day.items.length === 0);
   const attention = [
-    openDays.length > 0 && { label: `${openDays.length} open day${openDays.length === 1 ? "" : "s"}`, help: "Choose a park or protect a resort day.", href: dayHref(tripId, openDays[0].id), tone: "gold" },
-    openReservationCount > 0 && { label: `${openReservationCount} booking${openReservationCount === 1 ? "" : "s"} need attention`, help: "Finish wish-list and pending reservation details.", href: `/trips/${tripId}?view=reservations`, tone: "warning" },
-    unplacedMustDos > 0 && { label: `${unplacedMustDos} must-do${unplacedMustDos === 1 ? "" : "s"} still unplaced`, help: "Give the family's priorities a home.", href: dayHref(tripId, days[0]?.id), tone: "success" },
-  ].filter(Boolean) as Array<{ label: string; help: string; href: string; tone: string }>;
+    openDays.length > 0 && {
+      label: `${openDays.length} open day${openDays.length === 1 ? "" : "s"}`,
+      help: "Choose a park or leave it as a rest day.",
+      href: dayHref(tripId, openDays[0].id),
+    },
+    openReservationCount > 0 && {
+      label: `${openReservationCount} booking${openReservationCount === 1 ? "" : "s"} need attention`,
+      help: "Finish the missing booking details.",
+      href: `/trips/${tripId}?view=reservations`,
+    },
+    unplacedMustDos > 0 && {
+      label: `${unplacedMustDos} must-do${unplacedMustDos === 1 ? "" : "s"} not placed`,
+      help: "Open a day and place your priorities.",
+      href: dayHref(tripId, days[0]?.id),
+    },
+  ].filter(Boolean) as Array<{ label: string; help: string; href: string }>;
 
-  return <div className="space-y-5">
-    <section className="overview-hero relative overflow-hidden rounded-[1.75rem] border border-gold/25 bg-primary text-white shadow-lift">
-      <div className="magic-dust absolute inset-0 opacity-40" aria-hidden="true" />
-      <div className="relative grid gap-6 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-center">
-        <div><p className="text-[10px] font-bold uppercase tracking-[0.24em] text-sand">Your vacation story</p><h2 className="mt-2 max-w-2xl text-3xl font-semibold text-white sm:text-4xl">Your trip at a glance.</h2><p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/70">See what is ready, what needs you, and the easiest place to continue.</p><div className="mt-5 flex flex-wrap gap-2 text-xs"><span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5">{days.length} days</span>{hotelName && <span className="max-w-full truncate rounded-full border border-white/15 bg-white/10 px-3 py-1.5">{hotelName}</span>}<span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5">Party of {partySize}{companionCount ? ` · ${companionCount + 1} connected` : ""}</span></div></div>
-        <div className="rounded-card border border-white/15 bg-white/10 p-4 backdrop-blur"><TripProgressMeter progress={progress} /><Link href={progress.nextAction.dayId ? dayHref(tripId, progress.nextAction.dayId) : `/trips/${tripId}?view=day`} className={buttonStyles({ variant: "secondary", className: "mt-4 w-full border-white/20 bg-white text-primary hover:bg-sand" })}>Continue planning</Link><p className="mt-2 text-center text-xs leading-relaxed text-white/65">Next: {progress.nextAction.title.toLowerCase()}</p>{days[0] && <Link href={`/trips/${tripId}?view=today&day=${days[0].id}`} className="mt-3 block text-center text-xs font-semibold text-sand underline decoration-white/25 underline-offset-4">Preview the in-park view</Link>}</div>
+  return (
+    <div className="space-y-5">
+      <section aria-labelledby="days-title">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold">Your trip</p>
+            <h2 id="days-title" className="mt-1 text-2xl font-semibold text-primary">Choose a day</h2>
+          </div>
+          <p className="text-xs text-muted">Tap to plan</p>
+        </div>
+        <ol className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
+          {days.map((day, index) => (
+            <RoadmapDay key={day.id} tripId={tripId} day={day} index={index} hotelName={hotelName} />
+          ))}
+        </ol>
+      </section>
+
+      <section className="rounded-card border border-border bg-surface p-4 shadow-card" aria-label="Trip progress">
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+          <div>
+            <TripProgressMeter progress={progress} compact />
+            <p className="mt-2 text-xs text-muted">Next: {progress.nextAction.title}</p>
+          </div>
+          <Link
+            href={progress.nextAction.dayId ? dayHref(tripId, progress.nextAction.dayId) : dayHref(tripId, days[0]?.id)}
+            className={buttonStyles({ className: "w-full sm:w-auto" })}
+          >
+            Continue
+          </Link>
+        </div>
+      </section>
+
+      <div className="flex items-center justify-between gap-3 rounded-control border border-border bg-surface px-4 py-3 text-sm shadow-card">
+        <span><strong className="text-primary">{reservationCount}</strong> booked item{reservationCount === 1 ? "" : "s"}</span>
+        <Link href={`/trips/${tripId}?view=reservations`} className="min-h-11 content-center font-semibold text-primary hover:text-gold">View bookings</Link>
       </div>
-    </section>
 
-    <section className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-control border border-border bg-surface px-4 py-3 text-sm shadow-card" aria-label="Trip snapshot">
-      <span><strong className="text-primary">{days.filter((day) => day.parkName).length}</strong> park days</span>
-      <span><strong className="text-primary">{reservationCount}</strong> reservations</span>
-      <span><strong className="text-primary">{mustDos.length - unplacedMustDos}</strong> must-dos placed</span>
-      <span><strong className="text-primary">{money(plannedCostCents)}</strong> planned{budgetCents !== null ? ` of ${money(budgetCents)}` : ""}</span>
-    </section>
-
-    {attention.length > 0 && <section aria-labelledby="attention-title"><div className="flex items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold">Next steps</p><h2 id="attention-title" className="mt-1 text-2xl font-semibold text-primary">A few things to finish</h2></div><Badge>{attention.length}</Badge></div><div className="mt-3 grid gap-3 md:grid-cols-3">{attention.map((item) => <Link key={item.label} href={item.href} className="group rounded-card border border-border bg-surface p-4 shadow-card transition hover:-translate-y-0.5 hover:border-gold/40 hover:shadow-lift"><span className={`mb-3 block size-2.5 rounded-full ${item.tone === "warning" ? "bg-warning" : item.tone === "success" ? "bg-success" : "bg-gold"}`} /><p className="font-semibold text-primary group-hover:text-gold">{item.label}</p><p className="mt-1 text-xs leading-relaxed text-muted">{item.help}</p></Link>)}</div></section>}
-
-    <section aria-labelledby="roadmap-title"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold">Day by day</p><h2 id="roadmap-title" className="mt-1 text-2xl font-semibold text-primary">Your vacation days</h2></div><p className="text-xs text-muted">Choose a day to plan it</p></div><ol className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{days.map((day, index) => <RoadmapDay key={day.id} tripId={tripId} day={day} index={index} hotelName={hotelName} />)}</ol></section>
-  </div>;
+      {attention.length > 0 && (
+        <details className="group rounded-card border border-border bg-surface shadow-card">
+          <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold text-primary">
+            <span>Trip to-dos</span>
+            <span className="flex items-center gap-2"><Badge>{attention.length}</Badge><span className="text-muted transition group-open:rotate-180" aria-hidden="true">⌄</span></span>
+          </summary>
+          <ul className="space-y-2 border-t border-border p-3">
+            {attention.map((item) => (
+              <li key={item.label}>
+                <Link href={item.href} className="block min-h-11 rounded-control px-3 py-2 hover:bg-parchment">
+                  <span className="block text-sm font-semibold text-primary">{item.label}</span>
+                  <span className="block text-xs text-muted">{item.help}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
 }
 
 function RoadmapDay({ tripId, day, index, hotelName }: { tripId: string; day: OverviewDay; index: number; hotelName: string | null }) {
   const theme = resolveDayTheme({ parkName: day.parkName, hotelName });
   const total = day.items.length + day.reservationCount;
-  return <li><Link href={dayHref(tripId, day.id)} data-theme={theme.id} data-pattern={theme.pattern} className="day-theme day-theme__hero group block h-full min-h-44 rounded-card border p-4 shadow-card transition hover:-translate-y-1 hover:shadow-lift"><div className="flex items-start justify-between gap-3"><div><p className="day-accent-text text-[9px] font-bold uppercase tracking-[0.18em]">Day {index + 1} · {format(day.date, "EEE, MMM d")}</p><h3 className="mt-1 font-display text-xl font-semibold leading-tight text-primary">{day.parkName || (hotelName ? "Resort day" : "Open day")}</h3>{day.secondaryParkName && <p className="mt-1 text-xs font-semibold text-muted">Hopper to {day.secondaryParkName}</p>}</div><span className="day-accent-text grid size-12 shrink-0 place-items-center rounded-full border border-[rgb(var(--day-accent)/.2)] bg-white/55"><ParkMark theme={theme.id} className="size-8" /></span></div><p className="mt-6 text-xs font-semibold text-muted">{total ? `${total} thing${total === 1 ? "" : "s"} planned${day.reservationCount ? ` · ${day.reservationCount} reservation${day.reservationCount === 1 ? "" : "s"}` : ""}` : "Nothing planned yet"}</p><p className="day-accent-text mt-3 text-xs font-bold">Open this day <span aria-hidden="true">→</span></p></Link></li>;
+  const label = day.parkName || (hotelName ? "Resort / rest" : "Open day");
+
+  return (
+    <li className="min-w-0">
+      <Link
+        href={dayHref(tripId, day.id)}
+        data-theme={theme.id}
+        data-pattern={theme.pattern}
+        className="day-theme day-theme__hero group flex min-h-28 flex-col rounded-card border p-3 shadow-card transition hover:-translate-y-0.5 hover:shadow-lift"
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="day-accent-text text-[9px] font-bold uppercase tracking-[0.14em]">Day {index + 1}</p>
+            <p className="mt-0.5 text-xs font-semibold text-muted">{format(day.date, "EEE, MMM d")}</p>
+          </div>
+          <span className="day-accent-text grid size-8 shrink-0 place-items-center rounded-full border border-[rgb(var(--day-accent)/.2)] bg-white/60">
+            <ParkMark theme={theme.id} className="size-5" />
+          </span>
+        </div>
+        <h3 className="mt-3 line-clamp-2 text-sm font-semibold leading-snug text-primary">{label}</h3>
+        {day.secondaryParkName && <p className="mt-1 truncate text-[10px] text-muted">Then {day.secondaryParkName}</p>}
+        <p className="mt-auto pt-3 text-[11px] font-semibold text-muted">{total ? `${total} planned` : "Nothing yet"}</p>
+      </Link>
+    </li>
+  );
 }
 
-function dayHref(tripId: string, dayId?: string) { return `/trips/${tripId}?view=day${dayId ? `&day=${dayId}` : ""}#day-canvas`; }
-function money(cents: number) { return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(cents / 100); }
+function dayHref(tripId: string, dayId?: string) {
+  return `/trips/${tripId}?view=day${dayId ? `&day=${dayId}` : ""}#day-canvas`;
+}

@@ -68,7 +68,7 @@ prisma/
 - Centralized day themes in `src/lib/day-themes.ts`, applied with scoped `data-theme` attributes and CSS variables. Rest days use a mapped hotel personality when recognized and the polished `rest` fallback otherwise.
 - Shared cards, controls, buttons, badges, empty states, budget meter, and accessible modal primitives
 - Focused trip workspace with a scrollable day rail, timeline bands, and mobile sheet editing
-- Density-optimized trip workspace: compact command bar, sticky day navigation, modal settings, dense itinerary rows, and must-dos in a desktop rail or mobile sheet
+- Mobile-first trip workspace: compact Overview, one-row day navigation, sheet-based editing, dense itinerary rows, and advanced tools hidden until requested
 
 ## Roadmap (high level)
 
@@ -132,9 +132,15 @@ Explore reports the directory's latest sync time and supports adding cached enti
 
 Google sign-in is optional. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` and register `/api/auth/callback/google` for the deployment URL. Email/password registration and sign-in remain available.
 
+### UX simplification pass
+
+The trip workspace now follows one clear loop: open the compact Overview, choose a day, and add itinerary items there. Today is a shortcut to the current day rather than a separate planning surface. Bookings are itinerary items marked Booked, and the Bookings page is a simple cross-trip list that links back to each day; older standalone reservation records remain editable for compatibility. Park selection, must-dos, hopper controls, timing help, AI suggestions, templates, copy/clear, party, sharing, and settings are available in focused sheets or overflow menus instead of competing with the timeline.
+
+The day rail stays on one swipeable row at phone widths, primary controls meet a 44px minimum target, new itinerary items default to Flexible timing, and optional confirmation, cost, party, backup, paid-extra, and notes fields live under More details.
+
 ### Trip experience hub
 
-The `20260824170000_trip_experience_hub` migration adds trip reservations, travel-party companions, and custom hotel names. Reservations can be attached to a planning day and flow into the trip overview, printable share view, budget, and Today mode. Today mode opens automatically during an active trip and remains available as a preview beforehand.
+The `20260824170000_trip_experience_hub` migration adds trip reservations, travel-party companions, and custom hotel names. Reservations can be attached to a planning day and flow into the trip overview, printable share view, and budget. Existing Today links now open the matching day planner.
 
 Hotel refreshes now preserve a useful recovery path: when the live WDW hierarchy cannot be reached, the bundled Disney resort catalog is still cached. Any hotel can also be entered manually, so planning is never blocked by directory availability.
 

@@ -72,6 +72,13 @@ h1, h2, .font-display { font-family: var(--font-display); }
 
 .mobile-dock { bottom: max(.75rem, env(safe-area-inset-bottom)); }
 
+.day-filmstrip {
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.day-filmstrip::-webkit-scrollbar { display: none; }
+
 /* Day themes are intentionally scoped to the itinerary canvas. The app shell
    remains calm parchment and navy while each selected day carries its identity. */
 .day-theme {
@@ -151,6 +158,3 @@ h1, h2, .font-display { font-family: var(--font-display); }
 }
 
 body:has(.planner-page) > [role="main"] { max-width: 100rem; padding-top: 1rem; padding-bottom: 1rem; }
-.planner-tools { display: contents; }
-@media (min-width: 1024px) { main > .planner-tools .planner-tools__desktop { display: none !important; } }
-@media (max-width: 1023px) { .planner-page .grid > .planner-tools { display: none; } }
