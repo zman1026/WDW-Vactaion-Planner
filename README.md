@@ -81,11 +81,11 @@ prisma/
 - [x] Auth.js email/password authentication with user-scoped trips
 - [x] Budget roll-up and richer Explore filters/live data
 - [x] Printable shareable trip summary
-- [x] AI-assisted itinerary suggestions (OpenAI or xAI)
+- [x] Curated, editable touring plans for every WDW park
 - [x] Park-hours, showtime, and time-conflict helper
 - [x] Trip editing/deletion with safe date-range reconciliation
 - [x] WDW hotel assignment and share-view display
-- [x] Party profile reused by AI suggestions
+- [x] Reusable party profile for planning context
 - [x] Clear/copy planning-day actions and mobile planner improvements
 - [x] Flexible item timing: fixed reservations, part-of-day preferences, or anytime
 - [x] Park-scoped searchable offering dropdowns by category
@@ -112,11 +112,11 @@ Email/password sessions replace the temporary local user. Passwords are salted a
 
 ### Phase 3 complete
 
-Each park day can request an AI-generated itinerary based on party preferences and existing items. Suggestions use a Responses API-compatible client, are schema validated, restricted to cached entities, and require explicit confirmation before being added. The timing helper detects overlapping itinerary items and can fetch available live park hours and planned-show showtimes. Always verify generated plans and third-party timing data in My Disney Experience.
+Each park offers five curated touring styles inside Day tools: first-visit highlights, younger-family pacing, thrill-focused touring, a relaxed interest-based route, and a late-start option. Users preview the full route before adding it, and existing timeline items are preserved. The plans use morning, afternoon, and evening guidance instead of brittle clock times, and every item remains editable. The timing helper detects overlapping fixed-time itinerary items and can fetch available live park hours and planned-show showtimes. Always verify plans and third-party timing data in My Disney Experience.
 
 ### Phase 4 complete
 
-Trips can be edited or deleted, assigned a cached WDW hotel, and given a reusable party profile containing party size, ages, dietary/accessibility notes, must-dos, and avoids. Extending dates creates missing planning days. Shortening dates removes only empty out-of-range days; if an excluded day has a park, notes, or itinerary items, the update is blocked until that day is cleared so planned data is never silently lost. Day cards support clearing all items and appending a copy of one day's items to another day in the same trip. Hotel and party details appear in the printable share view, and saved party details are automatically included in AI suggestions.
+Trips can be edited or deleted, assigned a cached WDW hotel, and given a reusable party profile containing party size, ages, dietary/accessibility notes, must-dos, and avoids. Extending dates creates missing planning days. Shortening dates removes only empty out-of-range days; if an excluded day has a park, notes, or itinerary items, the update is blocked until that day is cleared so planned data is never silently lost. Day cards support clearing all items and appending a copy of one day's items to another day in the same trip. Hotel and party details appear in the printable share view.
 
 Itinerary timing is independent of entity type. Attractions, restaurants, shows, and experiences can use a fixed reservation/showtime, a preferred morning/afternoon/evening slot, or remain flexible for any time. Only fixed items participate in exact overlap warnings.
 
@@ -134,7 +134,7 @@ Google sign-in is optional. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` an
 
 ### UX simplification pass
 
-The trip workspace now follows one clear loop: open the compact Overview, choose a day, and add itinerary items there. Today is a shortcut to the current day rather than a separate planning surface. Bookings are itinerary items marked Booked, and the Bookings page is a simple cross-trip list that links back to each day; older standalone reservation records remain editable for compatibility. Park selection, must-dos, hopper controls, timing help, AI suggestions, templates, copy/clear, party, sharing, and settings are available in focused sheets or overflow menus instead of competing with the timeline.
+The trip workspace now follows one clear loop: open the compact Overview, choose a day, and add itinerary items there. Today is a shortcut to the current day rather than a separate planning surface. Bookings are itinerary items marked Booked, and the Bookings page is a simple cross-trip list that links back to each day; older standalone reservation records remain editable for compatibility. Park selection, must-dos, hopper controls, timing help, curated touring plans, copy/clear, party, sharing, and settings are available in focused sheets or overflow menus instead of competing with the timeline.
 
 The day rail stays on one swipeable row at phone widths, primary controls meet a 44px minimum target, and the visual park sheet offers Rest plus the four WDW parks. New itinerary items default to Flexible timing, with simple Morning, Afternoon, Evening, and Exact time choices; confirmation, cost, party, backup, paid-extra, and notes fields live under More details. The planner is split into focused timeline, item-sheet, park-sheet, and day-tools components, and Explore uses swipeable trip-day chips with park names.
 
@@ -148,3 +148,5 @@ Hotel refreshes now preserve a useful recovery path: when the live WDW hierarchy
 
 We use the free community API at [ThemeParks.wiki](https://themeparks.wiki).  
 Always treat live wait times and schedules as approximate. The official source of truth is the My Disney Experience app and disneyworld.disney.go.com.
+
+The ready-made park plans are original, editable starting points synthesized from current field-tested touring guidance and traveler reports, including [Rope Drop Planner's 2026 Magic Kingdom plan](https://ropedropplanner.com/blog/magic-kingdom-in-one-day-2026-touring-plan), [Disney Tourist Blog's tested EPCOT plan](https://www.disneytouristblog.com/1-day-epcot-plan/), [Disney Tourist Blog's tested Animal Kingdom plan](https://www.disneytouristblog.com/1-day-animal-kingdom-plan/comment-page-1/), [Disney Park Nerds' Animal Kingdom field plan](https://disneyparknerds.com/one-day-animal-kingdom-itinerary/), [TouringPlans' Hollywood Studios plan styles](https://touringplans.com/hollywood-studios/touring-plans), and [Mouse Hacking's 2026 Hollywood Studios itinerary](https://www.mousehacking.com/blog/hollywood-studios-one-day-itinerary). They intentionally avoid exact promises about waits, showtimes, or operating attractions.

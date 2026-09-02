@@ -4,14 +4,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
+import type { DayThemeId } from "@/lib/day-themes";
 import {
-  addSuggestedDayItems,
-  applyStarterTemplate,
+  applyCuratedDayPlan,
   assignSecondaryPark,
   clearDay,
   copyDay,
 } from "./actions";
-import { AiSuggestions } from "./ai-suggestions";
+import { CuratedPlanPicker } from "./curated-plan-picker";
 import type { DayActionRunner, DayOption, ParkOption, PlanItem } from "./day-planner-types";
 import { MustDoBoard, type MustDoSummary } from "./must-do-board";
 import type { ReservationSummary } from "./reservation-center";
@@ -21,6 +21,7 @@ export function DayToolsSheet({
   open,
   tripId,
   dayPlanId,
+  themeId,
   parkId,
   secondaryParkId,
   parks,
@@ -38,6 +39,7 @@ export function DayToolsSheet({
   open: boolean;
   tripId: string;
   dayPlanId: string;
+  themeId: DayThemeId;
   parkId: string | null;
   secondaryParkId: string | null;
   parks: ParkOption[];
@@ -68,7 +70,7 @@ export function DayToolsSheet({
   ];
 
   return (
-    <Modal open={open} title="Day tools" onClose={onClose} size="compact">
+    <Modal open={open} title="Day tools" onClose={onClose} size="compact" theme={themeId}>
       <p className="-mt-2 mb-4 text-sm leading-relaxed text-muted">Optional help for this day. Your timeline stays unchanged until you choose to add or save something.</p>
       {error && <p role="alert" className="mb-4 rounded-control border border-danger/20 bg-danger/5 px-3 py-2 text-sm text-danger">{error}</p>}
       <div className="space-y-3">
@@ -84,21 +86,22 @@ export function DayToolsSheet({
           <section className="day-theme__hero rounded-card border border-[rgb(var(--day-accent)/.28)] p-4 text-center">
             <span className="day-accent-text mx-auto grid size-10 place-items-center rounded-full border border-[rgb(var(--day-accent)/.22)] bg-white/70 text-lg" aria-hidden="true">✦</span>
             <h3 className="mt-3 font-semibold text-primary">Choose a park first</h3>
-            <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-muted">Suggested plans, park hours, and Park Hopper all need to know where you’re going.</p>
+            <p className="mx-auto mt-1 max-w-sm text-sm leading-relaxed text-muted">Ready-made plans, park hours, and Park Hopper all need to know where you’re going.</p>
             <Button type="button" className="day-primary mt-4 w-full" onClick={onChoosePark}>Choose a park</Button>
           </section>
         ) : (
           <>
             <section className="day-theme__hero rounded-card border border-[rgb(var(--day-accent)/.28)] p-4">
-              <p className="day-accent-text text-[10px] font-bold uppercase tracking-[0.16em]">A little planning magic</p>
-              <h3 className="mt-1 text-lg font-semibold text-primary">Build a {primaryParkName} day</h3>
-              <p className="mt-1 mb-3 text-sm leading-relaxed text-muted">Get a balanced starting plan using your saved party preferences and the park directory.</p>
-            <AiSuggestions
-              tripId={tripId}
-              dayPlanId={dayPlanId}
-              disabled={isPending}
-              onApply={(suggestions) => run(() => addSuggestedDayItems({ dayPlanId, items: suggestions }), onClose)}
-            />
+              <p className="day-accent-text text-[10px] font-bold uppercase tracking-[0.16em]">Ready-made touring plans</p>
+              <h3 className="mt-1 text-lg font-semibold text-primary">Choose your kind of {primaryParkName} day</h3>
+              <p className="mt-1 mb-3 text-sm leading-relaxed text-muted">Pick a field-tested starting route. Preview it first, then change anything on your timeline.</p>
+              <CuratedPlanPicker
+                themeId={themeId}
+                hasItems={items.length > 0}
+                disabled={isPending}
+                onApply={(planId) => run(() => applyCuratedDayPlan({ dayPlanId, planId }), onClose)}
+              />
+              <p className="mt-3 text-xs leading-relaxed text-muted">Plans use flexible parts of the day, not rigid times. Check current hours and availability before you go.</p>
             </section>
 
             <details className="group rounded-control border border-border bg-parchment/40">
@@ -123,18 +126,6 @@ export function DayToolsSheet({
               <div className="border-t border-border p-3"><TimingHelper parkId={parkId} items={timingItems} coachingNote={coachingNote} /></div>
             </details>
 
-            {items.length === 0 && (
-              <details className="group rounded-control border border-border bg-parchment/40">
-                <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 text-sm font-semibold text-primary">
-                  <span>Quick starter plan</span>
-                  <span className="text-muted transition group-open:rotate-180" aria-hidden="true">⌄</span>
-                </summary>
-                <div className="border-t border-border p-3">
-                  <p className="text-xs text-muted">Add a few flexible favorites without building a full suggested day.</p>
-                  <Button type="button" variant="secondary" className="mt-3 w-full" disabled={isPending} onClick={() => run(() => applyStarterTemplate({ dayPlanId }), onClose)}>Add starter plan</Button>
-                </div>
-              </details>
-            )}
           </>
         )}
 

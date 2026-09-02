@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { Modal } from "@/components/ui/modal";
+import type { DayThemeId } from "@/lib/day-themes";
 import { saveDayPlanItem } from "./actions";
 import { entityTypeLabel, type PickType, type PlanItem } from "./day-planner-types";
 
@@ -28,6 +29,7 @@ const WHEN_CHOICES: Array<{ value: WhenChoice; label: string }> = [
 export function DayItemSheet({
   editor,
   dayPlanId,
+  themeId,
   parkId,
   isPending,
   onClose,
@@ -36,6 +38,7 @@ export function DayItemSheet({
 }: {
   editor: PlanItem | PickType | null;
   dayPlanId: string;
+  themeId: DayThemeId;
   parkId: string | null;
   isPending: boolean;
   onClose: () => void;
@@ -45,7 +48,7 @@ export function DayItemSheet({
   const item = typeof editor === "object" && editor ? editor : undefined;
   const initialType = typeof editor === "string" ? editor : undefined;
   return (
-    <Modal open={Boolean(editor)} title={item ? "Edit item" : "Add to this day"} onClose={onClose}>
+    <Modal open={Boolean(editor)} title={item ? "Edit item" : "Add to this day"} onClose={onClose} theme={themeId}>
       {editor && (
         <ItemEditor
           key={item?.id ?? initialType ?? "new"}

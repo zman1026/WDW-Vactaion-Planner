@@ -5,8 +5,9 @@ import { redirect } from "next/navigation";
 import { eachDayOfInterval, format } from "date-fns";
 
 import { requireCurrentUser } from "@/lib/current-user";
-import { applySuggestionsSchema } from "@/lib/ai-validation";
-import { assignMustDoSchema, dayPlanItemSchema, itemMutationSchema, mustDoSchema, parkAssignmentSchema, secondaryParkAssignmentSchema, starterTemplateSchema, type DayPlanItemInput } from "@/lib/day-plan-validation";
+import { getCuratedPlan } from "@/lib/curated-day-plans";
+import { assignMustDoSchema, curatedPlanSchema, dayPlanItemSchema, itemMutationSchema, mustDoSchema, parkAssignmentSchema, secondaryParkAssignmentSchema, type DayPlanItemInput } from "@/lib/day-plan-validation";
+import { parkThemeId } from "@/lib/day-themes";
 import { getDescendantEntityIds } from "@/lib/entity-hierarchy";
 import { prisma } from "@/lib/prisma";
 import { budgetToCents, calendarDateToUtc } from "@/lib/trip-validation";
@@ -264,30 +265,17 @@ export async function assignMustDo(input: unknown) {
   revalidatePath(`/trips/${mustDo.tripId}`);
 }
 
-const STARTER_NAMES: Array<[RegExp, string[]]> = [
-  [/magic kingdom/i, ["Jungle Cruise", "Haunted Mansion", "Pirates of the Caribbean"]],
-  [/epcot/i, ["Spaceship Earth", "Living with the Land", "Remy's Ratatouille Adventure"]],
-  [/hollywood/i, ["The Twilight Zone Tower of Terror", "Toy Story Mania!", "Mickey & Minnie's Runaway Railway"]],
-  [/animal kingdom/i, ["Kilimanjaro Safaris", "Expedition Everest - Legend of the Forbidden Mountain", "Na'vi River Journey"]],
-];
-
-export async function applyStarterTemplate(input: unknown) {
-  const { dayPlanId } = starterTemplateSchema.parse(input);
-  const user = await requireCurrentUser();
-  const day = await prisma.dayPlan.findFirst({ where: { id: dayPlanId, trip: { userId: user.id } }, include: { items: { select: { id: true } } } });
-  if (!day?.parkId || day.items.length) throw new Error("Starter plans are available for empty park days.");
-  const park = await prisma.parkEntity.findFirst({ where: { id: day.parkId, entityType: "PARK" }, select: { name: true } });
-  const names = STARTER_NAMES.find(([pattern]) => pattern.test(park?.name ?? ""))?.[1] ?? [];
-  const descendantIds = await getDescendantEntityIds(day.parkId);
-  const entities = await prisma.parkEntity.findMany({ where: { id: { in: descendantIds }, name: { in: names }, entityType: { in: ["ATTRACTION", "SHOW", "EXPERIENCE"] } }, select: { id: true, name: true, entityType: true } });
-  const ordered = names.flatMap((name) => entities.filter((entity) => entity.name === name));
-  if (!ordered.length) throw new Error("No starter offerings were found in the current directory. Refresh the directory and try again.");
-  await prisma.dayPlanItem.createMany({ data: ordered.map((entity, index) => ({ dayPlanId: day.id, entityId: entity.id, entityType: entity.entityType, title: entity.name, timingType: "TIME_OF_DAY", timeOfDay: index === 0 ? "MORNING" : index === ordered.length - 1 ? "EVENING" : "AFTERNOON", sortOrder: index })) });
-  revalidatePath(`/trips/${day.tripId}`);
+function comparableName(value: string) {
+  return value
+    .normalize("NFKD")
+    .replace(/[’‘]/g, "'")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
-export async function addSuggestedDayItems(input: unknown) {
-  const parsed = applySuggestionsSchema.parse(input);
+export async function applyCuratedDayPlan(input: unknown) {
+  const parsed = curatedPlanSchema.parse(input);
   const user = await requireCurrentUser();
   const day = await prisma.dayPlan.findFirst({
     where: { id: parsed.dayPlanId, trip: { userId: user.id } },
@@ -295,45 +283,50 @@ export async function addSuggestedDayItems(input: unknown) {
       id: true,
       tripId: true,
       parkId: true,
-      items: { select: { entityId: true } },
+      items: { select: { entityId: true, title: true } },
     },
   });
-  if (!day?.parkId) throw new Error("Choose a park before adding a suggested day.");
+  if (!day?.parkId) throw new Error("Choose a park before adding a ready-made plan.");
 
-  const descendantIds = new Set(await getDescendantEntityIds(day.parkId));
-  const requestedIds = [...new Set(parsed.items.map((item) => item.entityId))];
+  const plan = getCuratedPlan(parsed.planId);
+  if (!plan) throw new Error("That plan is no longer available. Choose another one.");
+  const park = await prisma.parkEntity.findFirst({ where: { id: day.parkId, entityType: "PARK" }, select: { name: true } });
+  if (!park || parkThemeId(park.name) !== plan.park) throw new Error("Choose a plan made for this park.");
+
+  const descendantIds = await getDescendantEntityIds(day.parkId);
   const entities = await prisma.parkEntity.findMany({
     where: {
-      id: { in: requestedIds },
+      id: { in: descendantIds },
       entityType: { in: ["ATTRACTION", "RESTAURANT", "SHOW", "EXPERIENCE"] },
     },
     select: { id: true, name: true, entityType: true },
   });
-  const entityById = new Map(entities.map((entity) => [entity.id, entity]));
   const existingIds = new Set(day.items.map((item) => item.entityId));
-  const seen = new Set<string>();
-  const safeItems = parsed.items.flatMap((item) => {
-    const entity = entityById.get(item.entityId);
-    if (!entity || !descendantIds.has(item.entityId) || entity.entityType !== item.entityType || existingIds.has(item.entityId) || seen.has(item.entityId)) return [];
-    seen.add(item.entityId);
-    return [{ item, entity }];
+  const existingNames = new Set(day.items.map((item) => comparableName(item.title)));
+  const entityByName = new Map(entities.map((entity) => [comparableName(entity.name), entity]));
+  const additions = plan.items.flatMap((item, index) => {
+    const entity = item.matchNames?.map((name) => entityByName.get(comparableName(name))).find(Boolean);
+    const title = entity?.name ?? item.title;
+    const entityId = entity?.id ?? `curated:${plan.id}:${index}`;
+    if (existingIds.has(entityId) || existingNames.has(comparableName(title))) return [];
+    existingIds.add(entityId);
+    existingNames.add(comparableName(title));
+    return [{
+      dayPlanId: day.id,
+      entityId,
+      entityType: entity?.entityType ?? item.entityType,
+      title,
+      timingType: "TIME_OF_DAY",
+      timeOfDay: item.timing,
+      notes: item.note ?? null,
+    }];
   });
-  if (!safeItems.length) throw new Error("Those suggestions are already on this day. Ask for another plan.");
+  if (!additions.length) throw new Error("Every stop in that plan is already on this day.");
 
   const last = await prisma.dayPlanItem.aggregate({ where: { dayPlanId: day.id }, _max: { sortOrder: true } });
   await prisma.dayPlanItem.createMany({
-    data: safeItems.map(({ item, entity }, index) => ({
-      dayPlanId: day.id,
-      entityId: entity.id,
-      entityType: entity.entityType,
-      title: entity.name,
-      timingType: "EXACT",
-      timeOfDay: null,
-      startTime: item.startTime,
-      endTime: item.endTime,
-      estimatedCostCents: item.estimatedCostCents,
-      notes: item.notes || null,
-      bookingStatus: entity.entityType === "RESTAURANT" ? "WISHLIST" : "NONE",
+    data: additions.map((item, index) => ({
+      ...item,
       sortOrder: (last._max.sortOrder ?? -1) + index + 1,
     })),
   });

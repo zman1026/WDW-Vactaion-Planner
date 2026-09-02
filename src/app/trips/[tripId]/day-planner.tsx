@@ -122,6 +122,7 @@ export function DayPlanner({
 
       <ParkPickerSheet
         open={parkOpen}
+        themeId={themeId}
         parkId={parkId}
         parks={parks}
         disabled={isPending}
@@ -133,6 +134,7 @@ export function DayPlanner({
         open={toolsOpen}
         tripId={tripId}
         dayPlanId={dayPlanId}
+        themeId={themeId}
         parkId={parkId}
         secondaryParkId={secondaryParkId}
         parks={parks}
@@ -154,6 +156,7 @@ export function DayPlanner({
       <DayItemSheet
         editor={editor}
         dayPlanId={dayPlanId}
+        themeId={themeId}
         parkId={parkId}
         isPending={isPending}
         onClose={() => setEditor(null)}

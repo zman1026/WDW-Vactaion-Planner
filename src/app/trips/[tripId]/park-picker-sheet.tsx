@@ -7,8 +7,9 @@ import type { ParkOption } from "./day-planner-types";
 
 const PARK_ORDER: DayThemeId[] = ["mk", "epcot", "hs", "ak"];
 
-export function ParkPickerSheet({ open, parkId, parks, disabled, onClose, onChoose }: {
+export function ParkPickerSheet({ open, themeId, parkId, parks, disabled, onClose, onChoose }: {
   open: boolean;
+  themeId: DayThemeId;
   parkId: string | null;
   parks: ParkOption[];
   disabled: boolean;
@@ -25,7 +26,7 @@ export function ParkPickerSheet({ open, parkId, parks, disabled, onClose, onChoo
   const restTheme = resolveDayTheme({});
 
   return (
-    <Modal open={open} title="Choose a park" onClose={onClose} size="compact">
+    <Modal open={open} title="Choose a park" onClose={onClose} size="compact" theme={themeId}>
       <p className="text-sm text-muted">Pick the main place for this day. Choose Rest day when you want room to slow down.</p>
       <div className="mt-4 grid grid-cols-2 gap-2">
         <ParkChoice

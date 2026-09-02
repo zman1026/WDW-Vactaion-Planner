@@ -65,7 +65,10 @@ export const mustDoSchema = z.object({
 });
 
 export const assignMustDoSchema = z.object({ mustDoId: z.string().cuid(), dayPlanId: z.string().cuid() });
-export const starterTemplateSchema = z.object({ dayPlanId: z.string().cuid() });
+export const curatedPlanSchema = z.object({
+  dayPlanId: z.string().cuid(),
+  planId: z.string().trim().min(1).max(80),
+});
 
 export const itemMutationSchema = z.object({
   itemId: z.string().cuid(),
