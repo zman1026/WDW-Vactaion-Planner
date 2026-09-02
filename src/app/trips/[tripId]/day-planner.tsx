@@ -142,7 +142,12 @@ export function DayPlanner({
         mustDos={mustDos}
         coachingNote={coachingNote}
         isPending={isPending}
+        error={error}
         onClose={() => setToolsOpen(false)}
+        onChoosePark={() => {
+          setToolsOpen(false);
+          setParkOpen(true);
+        }}
         run={run}
       />
 

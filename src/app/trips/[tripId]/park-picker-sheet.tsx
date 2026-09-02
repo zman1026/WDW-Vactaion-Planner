@@ -25,7 +25,7 @@ export function ParkPickerSheet({ open, parkId, parks, disabled, onClose, onChoo
   const restTheme = resolveDayTheme({});
 
   return (
-    <Modal open={open} title="Choose a park" onClose={onClose}>
+    <Modal open={open} title="Choose a park" onClose={onClose} size="compact">
       <p className="text-sm text-muted">Pick the main place for this day. Choose Rest day when you want room to slow down.</p>
       <div className="mt-4 grid grid-cols-2 gap-2">
         <ParkChoice

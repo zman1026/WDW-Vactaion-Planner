@@ -17,4 +17,8 @@ export const suggestionItemSchema = z.object({
 });
 
 export const suggestionResponseSchema = z.object({ summary: z.string().max(500), items: z.array(suggestionItemSchema).min(1).max(8) });
+export const applySuggestionsSchema = z.object({
+  dayPlanId: z.string().cuid(),
+  items: z.array(suggestionItemSchema).min(1).max(8),
+});
 export type SuggestedItem = z.infer<typeof suggestionItemSchema>;

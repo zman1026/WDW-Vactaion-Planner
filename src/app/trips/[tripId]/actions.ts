@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { eachDayOfInterval, format } from "date-fns";
 
 import { requireCurrentUser } from "@/lib/current-user";
+import { applySuggestionsSchema } from "@/lib/ai-validation";
 import { assignMustDoSchema, dayPlanItemSchema, itemMutationSchema, mustDoSchema, parkAssignmentSchema, secondaryParkAssignmentSchema, starterTemplateSchema, type DayPlanItemInput } from "@/lib/day-plan-validation";
 import { getDescendantEntityIds } from "@/lib/entity-hierarchy";
 import { prisma } from "@/lib/prisma";
@@ -282,6 +283,60 @@ export async function applyStarterTemplate(input: unknown) {
   const ordered = names.flatMap((name) => entities.filter((entity) => entity.name === name));
   if (!ordered.length) throw new Error("No starter offerings were found in the current directory. Refresh the directory and try again.");
   await prisma.dayPlanItem.createMany({ data: ordered.map((entity, index) => ({ dayPlanId: day.id, entityId: entity.id, entityType: entity.entityType, title: entity.name, timingType: "TIME_OF_DAY", timeOfDay: index === 0 ? "MORNING" : index === ordered.length - 1 ? "EVENING" : "AFTERNOON", sortOrder: index })) });
+  revalidatePath(`/trips/${day.tripId}`);
+}
+
+export async function addSuggestedDayItems(input: unknown) {
+  const parsed = applySuggestionsSchema.parse(input);
+  const user = await requireCurrentUser();
+  const day = await prisma.dayPlan.findFirst({
+    where: { id: parsed.dayPlanId, trip: { userId: user.id } },
+    select: {
+      id: true,
+      tripId: true,
+      parkId: true,
+      items: { select: { entityId: true } },
+    },
+  });
+  if (!day?.parkId) throw new Error("Choose a park before adding a suggested day.");
+
+  const descendantIds = new Set(await getDescendantEntityIds(day.parkId));
+  const requestedIds = [...new Set(parsed.items.map((item) => item.entityId))];
+  const entities = await prisma.parkEntity.findMany({
+    where: {
+      id: { in: requestedIds },
+      entityType: { in: ["ATTRACTION", "RESTAURANT", "SHOW", "EXPERIENCE"] },
+    },
+    select: { id: true, name: true, entityType: true },
+  });
+  const entityById = new Map(entities.map((entity) => [entity.id, entity]));
+  const existingIds = new Set(day.items.map((item) => item.entityId));
+  const seen = new Set<string>();
+  const safeItems = parsed.items.flatMap((item) => {
+    const entity = entityById.get(item.entityId);
+    if (!entity || !descendantIds.has(item.entityId) || entity.entityType !== item.entityType || existingIds.has(item.entityId) || seen.has(item.entityId)) return [];
+    seen.add(item.entityId);
+    return [{ item, entity }];
+  });
+  if (!safeItems.length) throw new Error("Those suggestions are already on this day. Ask for another plan.");
+
+  const last = await prisma.dayPlanItem.aggregate({ where: { dayPlanId: day.id }, _max: { sortOrder: true } });
+  await prisma.dayPlanItem.createMany({
+    data: safeItems.map(({ item, entity }, index) => ({
+      dayPlanId: day.id,
+      entityId: entity.id,
+      entityType: entity.entityType,
+      title: entity.name,
+      timingType: "EXACT",
+      timeOfDay: null,
+      startTime: item.startTime,
+      endTime: item.endTime,
+      estimatedCostCents: item.estimatedCostCents,
+      notes: item.notes || null,
+      bookingStatus: entity.entityType === "RESTAURANT" ? "WISHLIST" : "NONE",
+      sortOrder: (last._max.sortOrder ?? -1) + index + 1,
+    })),
+  });
   revalidatePath(`/trips/${day.tripId}`);
 }
 
