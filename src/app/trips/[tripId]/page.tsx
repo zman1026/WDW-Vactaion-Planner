@@ -185,6 +185,7 @@ export default async function TripPage({ params, searchParams }: TripPageProps) 
       {view === "overview" ? (
         <TripOverview
           tripId={trip.id}
+          tripNotes={trip.notes}
           hotelName={hotelName}
           reservationCount={visibleReservationSummaries.filter((item) => item.status === "CONFIRMED").length + itineraryBookings.length}
           openReservationCount={visibleReservationSummaries.filter((item) => item.status !== "CONFIRMED").length}

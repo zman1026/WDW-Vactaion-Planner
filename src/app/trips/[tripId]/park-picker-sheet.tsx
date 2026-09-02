@@ -3,6 +3,7 @@
 import { ParkMark } from "@/components/park-mark";
 import { Modal } from "@/components/ui/modal";
 import { resolveDayTheme, type DayThemeId } from "@/lib/day-themes";
+import { PARK_GUIDES } from "@/lib/guided-trip";
 import type { ParkOption } from "./day-planner-types";
 
 const PARK_ORDER: DayThemeId[] = ["mk", "epcot", "hs", "ak"];
@@ -90,9 +91,6 @@ function ParkChoice({ label, help, theme, selected, disabled, onClick }: {
 }
 
 function parkHelp(theme: DayThemeId) {
-  if (theme === "mk") return "Classic park day";
-  if (theme === "epcot") return "Discovery and flavors";
-  if (theme === "hs") return "Shows and adventures";
-  if (theme === "ak") return "Wild paths and animals";
+  if (theme === "mk" || theme === "epcot" || theme === "hs" || theme === "ak") return PARK_GUIDES[theme].description;
   return "Park day";
 }

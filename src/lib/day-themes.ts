@@ -30,7 +30,7 @@ export const DAY_THEMES: Record<DayThemeId, DayTheme> = {
     wash: "255 249 235",
     eyebrow: "A day for bright wishes",
     emptyTitle: "No plans yet for this Magic Kingdom day",
-    emptyDescription: "Begin with one must-do, then leave room for the happy surprises in between.",
+    emptyDescription: "Add one favorite, or open Day tools and choose a ready-made plan.",
     pattern: "sparkle",
   },
   epcot: {
@@ -40,7 +40,7 @@ export const DAY_THEMES: Record<DayThemeId, DayTheme> = {
     wash: "239 250 248",
     eyebrow: "A day of discovery",
     emptyTitle: "Your EPCOT day is wide open",
-    emptyDescription: "Sketch a calm route through discoveries, flavors, and an evening worth lingering for.",
+    emptyDescription: "Add one favorite, or open Day tools and choose a ready-made plan through the park.",
     pattern: "geometry",
   },
   hs: {
@@ -50,7 +50,7 @@ export const DAY_THEMES: Record<DayThemeId, DayTheme> = {
     wash: "253 242 245",
     eyebrow: "Your day in the spotlight",
     emptyTitle: "Set the scene for your Studios day",
-    emptyDescription: "Add a headliner, a showtime, or a memorable meal to start the story.",
+    emptyDescription: "Add one favorite, or open Day tools and choose a ready-made plan.",
     pattern: "stage",
   },
   ak: {
@@ -60,7 +60,7 @@ export const DAY_THEMES: Record<DayThemeId, DayTheme> = {
     wash: "242 248 238",
     eyebrow: "Follow the wild path",
     emptyTitle: "Your Animal Kingdom trail is open",
-    emptyDescription: "Choose an early adventure and let the day unfold at a gentler, wandering pace.",
+    emptyDescription: "Start early, or open Day tools for a ready-made plan—this park usually closes earlier.",
     pattern: "organic",
   },
   rest: {

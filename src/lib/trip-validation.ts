@@ -63,7 +63,32 @@ export const createTripSchema = tripDetailsSchema.superRefine(({ startDate, endD
     }
   });
 
+const ageBand = z.coerce.number().int().min(0).max(30);
+const partyBandsSchema = z.object({
+  adults: ageBand,
+  teens: ageBand,
+  kids: ageBand,
+  toddlers: ageBand,
+});
+
+export const veteranTripSchema = createTripSchema.and(partyBandsSchema.extend({
+  path: z.literal("veteran"),
+  hotelId: z.string().trim().max(180).optional().default(""),
+}));
+
+export const guidedTripSchema = createTripSchema.and(partyBandsSchema.extend({
+  path: z.literal("guide"),
+  hotelId: z.string().trim().max(180).optional().default(""),
+  style: z.enum(["FIRST_VISIT", "LITTLE_KIDS", "THRILLS", "RELAXED"]),
+  restPreference: z.enum(["AFTER_TRAVEL", "MIDDLE", "NONE", "EVERY_OTHER"]),
+})).superRefine(({ adults, teens, kids, toddlers }, context) => {
+  if (adults + teens + kids + toddlers < 1) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ["adults"], message: "Add at least one traveler." });
+  }
+});
+
 export type CreateTripInput = z.input<typeof createTripSchema>;
+export type GuidedTripInput = z.input<typeof guidedTripSchema>;
 
 export function calendarDateToUtc(value: string) {
   return new Date(`${value}T12:00:00.000Z`);

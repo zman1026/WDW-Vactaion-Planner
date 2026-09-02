@@ -39,15 +39,18 @@ export function CuratedPlanPicker({
           <div className="flex flex-wrap gap-2 text-[11px] font-semibold text-muted">
             <span className="rounded-full bg-parchment px-2 py-1">{selected.bestFor}</span>
             <span className="rounded-full bg-parchment px-2 py-1">{selected.pace}</span>
-            <span className="rounded-full bg-parchment px-2 py-1">{selected.items.length} stops</span>
+            <span className="rounded-full bg-parchment px-2 py-1">{selected.items.length} ideas</span>
           </div>
           <h4 className="mt-3 text-lg font-semibold text-primary">{selected.title}</h4>
           <p className="mt-1 text-sm leading-relaxed text-muted">{selected.description}</p>
           <ol className="mt-4 space-y-2 border-l-2 border-[rgb(var(--day-accent)/.25)] pl-3">
             {selected.items.map((item, index) => (
-              <li key={`${item.title}-${index}`} className="flex items-start justify-between gap-3 text-sm">
-                <span className="font-medium text-primary">{item.title}</span>
-                <span className="shrink-0 text-xs text-muted">{TIME_LABELS[item.timing]}</span>
+              <li key={`${item.title}-${index}`} className="text-sm">
+                <span className="flex items-start justify-between gap-3">
+                  <span className="font-medium text-primary">{item.title}</span>
+                  <span className="shrink-0 text-xs text-muted">{TIME_LABELS[item.timing]}</span>
+                </span>
+                {item.note && <span className="mt-0.5 block text-xs leading-relaxed text-muted">{item.note}</span>}
               </li>
             ))}
           </ol>
@@ -81,7 +84,7 @@ export function CuratedPlanPicker({
           <span className="mt-2 flex flex-wrap gap-x-3 text-[11px] font-semibold text-muted">
             <span>{plan.bestFor}</span>
             <span>{plan.pace}</span>
-            <span>{plan.items.length} stops</span>
+            <span>{plan.items.length} ideas</span>
           </span>
         </button>
       ))}

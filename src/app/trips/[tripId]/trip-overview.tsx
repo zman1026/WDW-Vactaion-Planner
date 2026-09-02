@@ -27,6 +27,7 @@ type OverviewDay = {
 
 export function TripOverview({
   tripId,
+  tripNotes,
   days,
   hotelName,
   reservationCount,
@@ -35,6 +36,7 @@ export function TripOverview({
   mustDos,
 }: {
   tripId: string;
+  tripNotes: string | null;
   days: OverviewDay[];
   hotelName: string | null;
   reservationCount: number;
@@ -64,6 +66,12 @@ export function TripOverview({
 
   return (
     <div className="space-y-5">
+      {tripNotes?.startsWith("Draft week:") && (
+        <div className="day-theme__hero rounded-card border border-gold/30 bg-sand/10 p-4 shadow-card">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gold">Your first draft</p>
+          <p className="mt-1 text-sm leading-relaxed text-primary"><strong>This is a starting point.</strong> Change any park or stop until the week feels like your family.</p>
+        </div>
+      )}
       <section aria-labelledby="days-title">
         <div className="flex items-end justify-between gap-3">
           <div>

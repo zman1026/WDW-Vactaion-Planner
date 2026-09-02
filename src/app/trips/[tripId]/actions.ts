@@ -9,6 +9,7 @@ import { getCuratedPlan } from "@/lib/curated-day-plans";
 import { assignMustDoSchema, curatedPlanSchema, dayPlanItemSchema, itemMutationSchema, mustDoSchema, parkAssignmentSchema, secondaryParkAssignmentSchema, type DayPlanItemInput } from "@/lib/day-plan-validation";
 import { parkThemeId } from "@/lib/day-themes";
 import { getDescendantEntityIds } from "@/lib/entity-hierarchy";
+import { comparableName, matchPlanItem } from "@/lib/plan-matching";
 import { prisma } from "@/lib/prisma";
 import { budgetToCents, calendarDateToUtc } from "@/lib/trip-validation";
 import { clearDaySchema, companionMutationSchema, companionSchema, copyDaySchema, hotelAssignmentSchema, partyProfileSchema, reservationMutationSchema, reservationSchema, tripIdSchema, updateTripSchema } from "@/lib/trip-management-validation";
@@ -265,15 +266,6 @@ export async function assignMustDo(input: unknown) {
   revalidatePath(`/trips/${mustDo.tripId}`);
 }
 
-function comparableName(value: string) {
-  return value
-    .normalize("NFKD")
-    .replace(/[’‘]/g, "'")
-    .replace(/[^a-zA-Z0-9]+/g, " ")
-    .trim()
-    .toLowerCase();
-}
-
 export async function applyCuratedDayPlan(input: unknown) {
   const parsed = curatedPlanSchema.parse(input);
   const user = await requireCurrentUser();
@@ -303,11 +295,11 @@ export async function applyCuratedDayPlan(input: unknown) {
   });
   const existingIds = new Set(day.items.map((item) => item.entityId));
   const existingNames = new Set(day.items.map((item) => comparableName(item.title)));
-  const entityByName = new Map(entities.map((entity) => [comparableName(entity.name), entity]));
-  const additions = plan.items.flatMap((item, index) => {
-    const entity = item.matchNames?.map((name) => entityByName.get(comparableName(name))).find(Boolean);
-    const title = entity?.name ?? item.title;
-    const entityId = entity?.id ?? `curated:${plan.id}:${index}`;
+  const additions = plan.items.flatMap((item) => {
+    const entity = matchPlanItem(item, entities);
+    if (!entity) return [];
+    const title = entity.name;
+    const entityId = entity.id;
     if (existingIds.has(entityId) || existingNames.has(comparableName(title))) return [];
     existingIds.add(entityId);
     existingNames.add(comparableName(title));
@@ -321,7 +313,7 @@ export async function applyCuratedDayPlan(input: unknown) {
       notes: item.note ?? null,
     }];
   });
-  if (!additions.length) throw new Error("Every stop in that plan is already on this day.");
+  if (!additions.length) throw new Error("No new directory-backed stops from that plan are available for this day.");
 
   const last = await prisma.dayPlanItem.aggregate({ where: { dayPlanId: day.id }, _max: { sortOrder: true } });
   await prisma.dayPlanItem.createMany({

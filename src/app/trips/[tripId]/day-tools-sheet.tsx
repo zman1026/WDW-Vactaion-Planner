@@ -101,7 +101,7 @@ export function DayToolsSheet({
                 disabled={isPending}
                 onApply={(planId) => run(() => applyCuratedDayPlan({ dayPlanId, planId }), onClose)}
               />
-              <p className="mt-3 text-xs leading-relaxed text-muted">Plans use flexible parts of the day, not rigid times. Check current hours and availability before you go.</p>
+              <p className="mt-3 text-xs leading-relaxed text-muted">Plans use flexible parts of the day, not rigid times. Shows and parades run on many days, not all—confirm your date in My Disney Experience.</p>
             </section>
 
             <details className="group rounded-control border border-border bg-parchment/40">

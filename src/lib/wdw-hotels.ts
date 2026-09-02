@@ -35,6 +35,9 @@ const RESORT_NAMES = [
   "The Cabins at Disney's Fort Wilderness Resort - A Disney Vacation Club Resort",
   "The Campsites at Disney's Fort Wilderness Resort",
   "The Villas at Disney's Grand Floridian Resort & Spa",
+  "Walt Disney World Dolphin",
+  "Walt Disney World Swan",
+  "Walt Disney World Swan Reserve",
 ] as const;
 
 function slugify(name: string) {
